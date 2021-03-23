@@ -6925,6 +6925,7 @@ address generate_avx_ghash_processBlocks() {
         StubRoutines::_ghash_processBlocks = generate_avx_ghash_processBlocks();
         StubRoutines::_ghash_processBlocksBB = generate_avx_ghash_processBlocks();
       } else {
+        StubRoutines::_ghash_processBlocks = generate_ghash_processBlocks();
         StubRoutines::_ghash_processBlocksBB = generate_ghash_processBlocks();
       }
     }
