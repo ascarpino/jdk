@@ -143,7 +143,9 @@ final class GHASH implements Cloneable, GCM {
             throw new ProviderException("Internal error");
         }
         state = new long[2];
-        subkeyHtbl = new long[2*9];
+        // 48 keys for the interleaved implementation, 8 for avx-ghash
+        // implementation and one for the original key
+        subkeyHtbl = new long[2*57];
         subkeyHtbl[0] = (long)asLongView.get(subkeyH, 0);
         subkeyHtbl[1] = (long)asLongView.get(subkeyH, 8);
     }
@@ -262,7 +264,7 @@ final class GHASH implements Cloneable, GCM {
             throw new RuntimeException("internal state has invalid length: " +
                                        st.length);
         }
-        if (subH.length != 18) {
+        if (subH.length != 114) {
             throw new RuntimeException("internal subkeyHtbl has invalid length: " +
                                        subH.length);
         }
@@ -336,5 +338,13 @@ final class GHASH implements Cloneable, GCM {
     @Override
     public int doFinal(ByteBuffer src, ByteBuffer dst) {
         return doFinal(src, src.remaining());
+    }
+
+    long[] getState() {
+        return state;
+    }
+
+    long[] getSubkeyHtbl() {
+        return subkeyHtbl;
     }
 }
