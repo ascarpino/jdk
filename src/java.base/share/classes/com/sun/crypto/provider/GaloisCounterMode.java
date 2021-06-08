@@ -1620,14 +1620,12 @@ abstract class GaloisCounterMode extends CipherSpi {
                 len += buffer.remaining();
             }
 
-            checkDataLength(len);
-
-            // Save GHASH context to allow the tag to be checked even though
-            // the dst buffer is too short.  Context will be restored so the
-            // method can be called again with the proper sized dst buffer.
             if (len > dst.remaining()) {
-                save = ghashAllToS.clone();
+                throw new ShortBufferException("Output buffer too small, must" +
+                    " be at least " + len + " bytes long");
             }
+
+            checkDataLength(len);
 
             // Create buffer 'tag' that contains only the auth tag
             if (ct.remaining() >= tagLenBytes) {
@@ -1677,12 +1675,7 @@ abstract class GaloisCounterMode extends CipherSpi {
                 throw new AEADBadTagException("Tag mismatch!");
             }
 
-            if (save != null) {
-                ghashAllToS = save;
-                throw new ShortBufferException("Output buffer too small, must" +
-                    " be at least " + len + " bytes long");
-            }
-
+            src.position(src.limit());
             engine = null;
             restoreDst(dst);
             return processed;
