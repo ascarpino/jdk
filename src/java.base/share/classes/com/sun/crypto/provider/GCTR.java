@@ -51,7 +51,7 @@ import java.util.Arrays;
  *
  * @since 1.8
  */
-final class GCTR extends CounterMode implements GCM {
+final class GCTR extends CounterMode {
 
     // Maximum buffer size rotating ByteBuffer->byte[] intrinsic copy
     private static final int MAX_LEN = 1024;

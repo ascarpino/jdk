@@ -48,7 +48,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * @since 1.8
  */
 
-final class GHASH implements Cloneable, GCM {
+final class GHASH implements Cloneable {
 
     private static final int AES_BLOCK_SIZE = 16;
 
@@ -312,44 +312,5 @@ final class GHASH implements Cloneable, GCM {
         state[0] = 0;
         state[1] = 0;
         return result;
-    }
-
-
-    /**
-     * None of the out or dst values are necessary, they are to satisfy the
-     * GCM interface requirement
-     */
-    @Override
-    public int update(byte[] in, int inOfs, int inLen, byte[] out, int outOfs) {
-        return update(in, inOfs, inLen);
-    }
-
-    @Override
-    public int update(byte[] in, int inOfs, int inLen, ByteBuffer dst) {
-        return update(in, inOfs, inLen);
-    }
-
-    @Override
-    public int update(ByteBuffer src, ByteBuffer dst) {
-        return update(src, src.remaining());
-    }
-
-    @Override
-    public int doFinal(byte[] in, int inOfs, int inLen, byte[] out,
-        int outOfs) {
-        return doFinal(in, inOfs, inLen);
-    }
-
-    @Override
-    public int doFinal(ByteBuffer src, ByteBuffer dst) {
-        return doFinal(src, src.remaining());
-    }
-
-    long[] getState() {
-        return state;
-    }
-
-    long[] getSubkeyHtbl() {
-        return subkeyHtbl;
     }
 }
