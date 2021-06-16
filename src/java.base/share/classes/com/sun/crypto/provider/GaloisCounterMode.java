@@ -25,6 +25,7 @@
 
 package com.sun.crypto.provider;
 
+import jdk.internal.misc.Unsafe;
 import sun.nio.ch.DirectBuffer;
 import sun.security.jca.JCAUtil;
 import sun.security.util.ArrayUtil;
@@ -987,7 +988,7 @@ abstract class GaloisCounterMode extends CipherSpi {
          * allocated because for code simplicity.
          */
         byte[] overlapDetection(byte[] in, int inOfs, byte[] out, int outOfs) {
-            if (in == out && inOfs < outOfs) {
+            if (in == out && (!encryption || inOfs < outOfs)) {
                 originalOut = out;
                 originalOutOfs = outOfs;
                 return new byte[out.length];
@@ -1426,13 +1427,8 @@ abstract class GaloisCounterMode extends CipherSpi {
             processAAD();
             findTag(in, inOfs, inLen);
             out = overlapDetection(in, inOfs, out, outOfs);
-            byte[] outsave;
-            if (originalOut == null) {
-                outsave = new byte[out.length];
-            } else {
-                outsave = out;
-            }
-            len = decryptBlocks(new DecryptOp(gctr, ghash), in, inOfs, inLen, outsave, 0);
+
+            len = decryptBlocks(new DecryptOp(gctr, ghash), in, inOfs, inLen, out, outOfs);
             byte[] block = getLengthBlock(sizeOfAAD, len);
             ghash.update(block);
             block = ghash.digest();
@@ -1446,14 +1442,12 @@ abstract class GaloisCounterMode extends CipherSpi {
             }
 
             if (mismatch != 0) {
+                // Clear output data
+                Arrays.fill(out, outOfs, outOfs + len, (byte) 0);
                 throw new AEADBadTagException("Tag mismatch!");
             }
 
-            if (originalOut == null) {
-                System.arraycopy(outsave, 0, out, outOfs, len);
-            } else {
-                restoreOut(out, len);
-            }
+            restoreOut(out, len);
             return len;
         }
 
@@ -1516,7 +1510,7 @@ abstract class GaloisCounterMode extends CipherSpi {
             // tag buffer creation above will have consume some or all of it.
             ct.mark();
             dst = overlapDetection(src, dst);
-
+            dst.mark();
             processAAD();
             // Perform GHASH check on data
             processed +=
@@ -1535,6 +1529,15 @@ abstract class GaloisCounterMode extends CipherSpi {
             }
 
             if (mismatch != 0) {
+                // Clear output data
+                dst.reset();
+                if (dst.hasArray()) {
+                    int ofs = dst.arrayOffset() + dst.position();
+                    Arrays.fill(dst.array(), ofs , ofs + processed, (byte)0);
+                } else {
+                    Unsafe.getUnsafe().setMemory(((DirectBuffer)dst).address(),
+                        processed + dst.position(), (byte)0);
+                }
                 throw new AEADBadTagException("Tag mismatch!");
             }
 
