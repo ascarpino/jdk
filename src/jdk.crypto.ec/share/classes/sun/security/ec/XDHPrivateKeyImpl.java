@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,7 +53,7 @@ public final class XDHPrivateKeyImpl extends PKCS8Key implements XECPrivateKey {
 
         DerValue val = new DerValue(DerValue.tag_OctetString, k);
         try {
-            this.key = val.toByteArray();
+            this.privKeyMaterial = val.toByteArray();
         } finally {
             val.clear();
         }
@@ -66,7 +66,7 @@ public final class XDHPrivateKeyImpl extends PKCS8Key implements XECPrivateKey {
             InvalidKeyException::new, algid);
         paramSpec = new NamedParameterSpec(params.getName());
         try {
-            DerInputStream derStream = new DerInputStream(key);
+            DerInputStream derStream = new DerInputStream(privKeyMaterial);
             k = derStream.getOctetString();
         } catch (IOException ex) {
             throw new InvalidKeyException(ex);
