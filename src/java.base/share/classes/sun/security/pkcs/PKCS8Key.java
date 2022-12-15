@@ -26,6 +26,7 @@
 package sun.security.pkcs;
 
 import jdk.internal.access.SharedSecrets;
+import sun.security.util.DerInputStream;
 import sun.security.util.DerOutputStream;
 import sun.security.util.DerValue;
 import sun.security.x509.AlgorithmId;
@@ -73,7 +74,7 @@ public class PKCS8Key implements PrivateKey {
     protected byte[] encodedKey;
 
     /* The encoded x509 public key for v2 */
-    protected byte[] pubKeyEncoded;
+    protected byte[] pubKeyEncoded = null;
 
     /* The version for this key */
     private static final int V1 = 0;
@@ -97,6 +98,13 @@ public class PKCS8Key implements PrivateKey {
      */
     public PKCS8Key(byte[] input) throws InvalidKeyException {
         decode(new ByteArrayInputStream(input));
+    }
+
+    private PKCS8Key(byte[] privEncoding, byte[] pubEncoding)
+        throws InvalidKeyException {
+        this(privEncoding);
+        pubKeyEncoded = pubEncoding;
+        version = V2;
     }
 
     public int getVersion() {
@@ -132,12 +140,18 @@ public class PKCS8Key implements PrivateKey {
                 return;
             }
 
+ /*           DerValue next = val.data.getDerValue();
+            if (next.isContextSpecific((byte)0)) {
+                attributes = next.toByteArray();
+            }
+  */
             // OPTIONAL Context tag 0 for Attributes for PKCS8 v1 & v2
             var result =
                 val.data.getOptionalImplicitContextSpecific(0,
                     DerValue.tag_Sequence);
             if (result.isPresent()) {
-                attributes = result.get().toByteArray();
+                attributes = new DerInputStream(result.get().getDataBytes()).toByteArray();
+                //attributes = result.get().data.getSequence(0)''
                 if (val.data.available() == 0) {
                     return;
                 }
@@ -145,6 +159,7 @@ public class PKCS8Key implements PrivateKey {
 
             // OPTIONAL context tag 1 for Public Key for PKCS8 v2 only
             if (version == V2) {
+                System.err.println("writing pub");
                 result = val.data.getOptionalImplicitContextSpecific(1,
                     DerValue.tag_BitString);
                 if (result.isPresent()) {
@@ -183,7 +198,7 @@ public class PKCS8Key implements PrivateKey {
     public static PrivateKey parseKey(byte[] encoded) throws IOException {
         try {
             PKCS8Key rawKey = new PKCS8Key(encoded);
-            byte[] internal = rawKey.getEncodedInternal();
+            byte[] internal = rawKey.generateEncoding();
             PKCS8EncodedKeySpec pkcs8KeySpec =
                 new PKCS8EncodedKeySpec(internal);
             PrivateKey result = null;
@@ -218,6 +233,13 @@ public class PKCS8Key implements PrivateKey {
     }
 
     /**
+     * Returns the algorithm ID to be used with this key.
+     */
+    public AlgorithmId getAlgorithmId () {
+        return algid;
+    }
+
+    /**
      * Returns the DER-encoded form of the key as a byte array,
      * or {@code null} if an encoding error occurs.
      */
@@ -245,11 +267,10 @@ public class PKCS8Key implements PrivateKey {
         throws IOException {
         PKCS8Key privKey;
         try {
-            privKey = new PKCS8Key(privKeyEncoded);
+            privKey = new PKCS8Key(privKeyEncoded, pubKeyEncoded);
         } catch (InvalidKeyException e) {
             throw new IOException(e);
         }
-        privKey.pubKeyEncoded = pubKeyEncoded;
         return privKey.generateEncoding();
     }
 
@@ -264,6 +285,7 @@ public class PKCS8Key implements PrivateKey {
             try {
                 encodedKey = generateEncoding();
             } catch (IOException e) {
+                e.printStackTrace();
                 // encodedKey is still null
             }
         }
@@ -278,12 +300,13 @@ public class PKCS8Key implements PrivateKey {
         algid.encode(out);
         out.putOctetString(privKeyMaterial);
 
-        byte[] attribute = attributes;
-        if (attribute != null) {
-            var d = new DerValue[] {DerValue.wrap(attribute)};
+        if (attributes != null) {
+//            DerValue[] d = new DerValue[] {DerValue.wrap(attributes)};
             out.writeImplicit(
                 DerValue.createTag(DerValue.TAG_CONTEXT, false, (byte) 0),
-                new DerOutputStream().putSequence(d));
+                new DerOutputStream().putOctetString(attributes));
+                //new DerOutputStream().putSequence(d));
+
         }
 
         if (pubKeyEncoded != null) {
