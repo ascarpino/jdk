@@ -72,8 +72,8 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * @since 1.8
  */
 abstract class GaloisCounterMode extends CipherSpi {
-    static int DEFAULT_IV_LEN = 12; // in bytes
-    static int DEFAULT_TAG_LEN = 16; // in bytes
+    private static final int DEFAULT_IV_LEN = 12; // in bytes
+    private static final int DEFAULT_TAG_LEN = 16; // in bytes
     // In NIST SP 800-38D, GCM input size is limited to be no longer
     // than (2^36 - 32) bytes. Otherwise, the counter will wrap
     // around and lead to a leak of plaintext.
@@ -96,7 +96,7 @@ abstract class GaloisCounterMode extends CipherSpi {
 
     private boolean initialized = false;
 
-    SymmetricCipher blockCipher;
+    final SymmetricCipher blockCipher;
     // Engine instance for encryption or decryption
     private GCMEngine engine;
     private boolean encryption = true;
@@ -104,7 +104,7 @@ abstract class GaloisCounterMode extends CipherSpi {
     // Default value is 128bits, this is in bytes.
     int tagLenBytes = DEFAULT_TAG_LEN;
     // Key size if the value is passed, in bytes.
-    int keySize;
+    private final int keySize;
     // Prevent reuse of iv or key
     boolean reInit = false;
     byte[] lastKey = EMPTY_BUF;
@@ -616,13 +616,13 @@ abstract class GaloisCounterMode extends CipherSpi {
      * Intrinsic for the combined AES Galois Counter Mode implementation.
      * AES and GHASH operations are combined in the intrinsic implementation.
      *
-     * Requires 768 bytes (48 AES blocks) to efficiently use the intrinsic.
-     * inLen that is less than 768 size block sizes, before or after this
-     * intrinsic is used, will be done by the calling method
+     * Requires PARALLEN_LEN bytes to efficiently use the intrinsic.
+     * The intrinsic returns the number of bytes processed.
+     * The remaining bytes will be processed by the calling method.
      *
      * Note:
-     * Only Intel processors with AVX512 that support vaes, vpclmulqdq,
-     * avx512dq, and avx512vl trigger this intrinsic.
+     * Intel processors with AVX2 support and above trigger this intrinsic.
+     * Some AARCH64 processors also trigger this intrinsic.
      * Other processors will always use GHASH and GCTR which may have their own
      * intrinsic support
      *
