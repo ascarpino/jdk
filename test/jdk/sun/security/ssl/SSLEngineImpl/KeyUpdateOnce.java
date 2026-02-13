@@ -100,11 +100,14 @@ public class KeyUpdateOnce extends SSLContextTemplate{
                 // Check client side for KeyUpdate messages (Thread-0)
                 List<String> list = output.stderrShouldContain("Thread-0")
                     .asLines().stream().filter(s ->
-                        s.contains("Produced KeyUpdate post-handshake message")).toList();
+                        s.contains("KeyUpdate already send, skipping")).toList();
                 for (String s : list) {
                     System.err.println(s);
                 }
                 System.err.println("list size = " + list.size());
+                if (list.size() == 0) {
+                    throw new AssertionError("No skipped messages seen");
+                }
                 output.shouldContain("trigger key update");
                 output.shouldContain("KeyUpdate: write key updated");
                 output.shouldContain("KeyUpdate: read key updated");
