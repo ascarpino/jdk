@@ -376,11 +376,11 @@ enum SSLCipher {
 
     // Keywords found on the jdk.tls.keyLimits security property.
     static final String[] tag = {"KEYUPDATE"};
+    static final long COUNTDOWNWARN = 20000; // Print debug warning under limit
 
     static  {
         final long max = 4611686018427387904L; // 2^62
         String prop = Security.getProperty("jdk.tls.keyLimits");
-
         if (prop != null) {
             String[] propvalue = prop.split(",");
 
@@ -574,7 +574,6 @@ enum SSLCipher {
         boolean keyLimitEnabled = false;
         long keyLimitCountdown = 0;
         SecretKey baseSecret;
-        static final long COUNTDOWNWARN = 20000; // Print debug warning under limit
 
         SSLReadCipher(Authenticator authenticator,
                 ProtocolVersion protocolVersion) {
@@ -622,10 +621,8 @@ enum SSLCipher {
          * If key usage limit is not be monitored, return false.
          */
         public boolean atKeyLimit() {
-            if (keyLimitCountdown < COUNTDOWNWARN) {
-                if (SSLLogger.isOn()) {
-                    SSLLogger.fine("keyLimitCountdown: " + keyLimitCountdown);
-                }
+            if (keyLimitCountdown < COUNTDOWNWARN && SSLLogger.isOn()) {
+                SSLLogger.fine("keyLimitCountdown: " + keyLimitCountdown);
             }
             if (keyLimitCountdown >= 0) {
                 return false;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
  * @summary Verify one KeyUpdate message is sent
  *
  * @run main KeyUpdateOnce server TLS_AES_256_GCM_SHA384 200000
+ * @run main KeyUpdateOnce client TLS_AES_256_GCM_SHA384 200000
  */
 
 /*
@@ -45,46 +46,67 @@ import jdk.test.lib.process.ProcessTools;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
+
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 
-public class KeyUpdateOnce extends SSLContextTemplate{
-    SSLEngine eng;
-    static ByteBuffer cTos, sToc, outdata;
-    ByteBuffer buf;
-    static boolean ready = false;
-    static int dataLen = 10240;
-    static boolean serverwrite = true;
-    int totalDataLen = 0;
-    static boolean sc = true;
-    int delay = 1;
-    static boolean readdone = false;
-    static long newLimit;
+public class KeyUpdateOnce extends SSLContextTemplate {
 
-    // Turn on debugging
-    static boolean debug = true;
+    private static final int DATALEN = 10240;
+    private static final int BUF_DATALEN = 4 * DATALEN;
+    private static final int MAXLOOPS = 150;
+    private static final int COUNTDOWNLIMIT = 5;
+
+    private static final boolean DEBUG = true;
+
+    private static ByteBuffer cTos;
+    private static ByteBuffer sToc;
+    private static ByteBuffer outData;
+    private final ByteBuffer inData;
+
+    // thread flags
+    private static boolean ready = false;
+    private static boolean sc = true;
+    private static boolean readDone = false;
+    private static boolean serverWrites = true;
+
+    private static long newLimit;
+
+    // Reflection handle captured on read side once handshake completes
+    private static Object readSideInputRecord = null;
+
+    protected SSLEngine engine;
+    private final int delay = 1;
+    private int totalDataLen = 0;
 
     KeyUpdateOnce() {
-        buf = ByteBuffer.allocate(dataLen * 4);
+        this.inData = ByteBuffer.allocate(BUF_DATALEN);
     }
+
     /**
-     * args should have two values:  server|client, cipher suite, <limit size>
-     * Prepending 'p' is for internal use only.
+     * args should have:
+     *   server|client, cipherSuite, <limit size>
+     *
+     * Prepending 'p' is for internal use only (test harness relaunch).
      */
     public static void main(String[] args) throws Exception {
         for (String arg : args) {
             System.out.print(" " + arg);
         }
         System.out.println();
-        if (args[0].compareTo("p") != 0) {
+
+        // Harness mode: relaunch self with 'p' to force add-opens + debugging flags
+        if (!"p".equals(args[0])) {
             // args[]: 0 = client/server, 1 = cipher suite, 2 = newLimit
-            System.setProperty("test.java.opts", System.getProperty("test.java.opts") +
-                " -Dtest.src=" + System.getProperty("test.src") +
-                " -Dtest.jdk=" + System.getProperty("test.jdk") +
-                " -Djavax.net.debug=ssl,handshake -Djavatest.maxOutputSize=99999999" +
-                " --add-opens java.base/sun.security.ssl=ALL-UNNAMED");
+            System.setProperty("test.java.opts",
+                System.getProperty("test.java.opts") +
+                    " -Dtest.src=" + System.getProperty("test.src") +
+                    " -Dtest.jdk=" + System.getProperty("test.jdk") +
+                    " -Djavax.net.debug=ssl,handshake" +
+                    " -Djavatest.maxOutputSize=99999999" +
+                    " --add-opens java.base/sun.security.ssl=ALL-UNNAMED");
 
             System.out.println("test.java.opts: " +
                 System.getProperty("test.java.opts"));
@@ -97,17 +119,23 @@ public class KeyUpdateOnce extends SSLContextTemplate{
             try {
                 output.shouldContain(String.format(
                     "\"cipher suite\"        : \"%s", args[1]));
+                System.err.println("Output logs should show KeyUpdate has" +
+                    " been sent and skipped");
                 // Check client side for KeyUpdate messages (Thread-0)
                 List<String> list = output.stderrShouldContain("Thread-0")
-                    .asLines().stream().filter(s ->
-                        s.contains("KeyUpdate already send, skipping")).toList();
+                    .asLines().stream()
+                    .filter(s -> s.contains("KeyUpdate already send, skipping"))
+                    .toList();
+
                 for (String s : list) {
                     System.err.println(s);
                 }
                 System.err.println("list size = " + list.size());
-                if (list.size() == 0) {
-                    throw new AssertionError("No skipped messages seen");
+                if (list.isEmpty()) {
+                    throw new AssertionError("No KeyUpdate skipping " +
+                        "messages seen");
                 }
+
                 output.shouldContain("trigger key update");
                 output.shouldContain("KeyUpdate: write key updated");
                 output.shouldContain("KeyUpdate: read key updated");
@@ -122,35 +150,34 @@ public class KeyUpdateOnce extends SSLContextTemplate{
             return;
         }
 
-        // args[]:  0 = p, 1 = client/server, 2 = cipher suite, 3 = newLimit
-        if (args[1].compareTo("client") == 0) {
-            serverwrite = false;
-        }
-
+        // Worker mode:
+        // args[]: 0 = p, 1 = client/server, 2 = cipher suite, 3 = newLimit
+        serverWrites = !"client".equals(args[1]);
         newLimit = Long.parseLong(args[3]);
 
-        cTos = ByteBuffer.allocateDirect(dataLen*4);
-        sToc = ByteBuffer.allocateDirect(dataLen*4);
-        outdata = ByteBuffer.allocateDirect(dataLen);
+        cTos = ByteBuffer.allocateDirect(BUF_DATALEN);
+        sToc = ByteBuffer.allocateDirect(BUF_DATALEN);
+        outData = ByteBuffer.allocateDirect(DATALEN);
 
-        byte[] data  = new byte[dataLen];
-        Arrays.fill(data, (byte)0x0A);
-        outdata.put(data);
-        outdata.flip();
+        byte[] data = new byte[DATALEN];
+        Arrays.fill(data, (byte) 0x0A);
+        outData.put(data).flip();
+
         cTos.clear();
         sToc.clear();
 
-        Thread ts = new Thread(serverwrite ? new Client() :
+        Thread peer = new Thread(serverWrites ? new Client() :
             new Server(args[2]));
-        ts.start();
-        (serverwrite ? new Server(args[2]) : new Client()).run();
-        ts.interrupt();
-        ts.join();
+        peer.start();
+
+        (serverWrites ? new Server(args[2]) : new Client()).run();
+
+        peer.interrupt();
+        peer.join();
     }
 
-    private static void doTask(SSLEngineResult result,
-        SSLEngine engine) throws Exception {
-
+    private static void doTask(SSLEngineResult result, SSLEngine engine)
+        throws Exception {
         if (result.getHandshakeStatus() ==
             SSLEngineResult.HandshakeStatus.NEED_TASK) {
             Runnable runnable;
@@ -161,63 +188,64 @@ public class KeyUpdateOnce extends SSLContextTemplate{
             SSLEngineResult.HandshakeStatus hsStatus =
                 engine.getHandshakeStatus();
             if (hsStatus == SSLEngineResult.HandshakeStatus.NEED_TASK) {
-                throw new Exception(
-                    "handshake shouldn't need additional tasks");
+                throw new Exception("handshake shouldn't need additional tasks");
             }
             print("\tnew HandshakeStatus: " + hsStatus);
         }
     }
 
-    static void print(String s) {
-        if (debug) {
+    private static void print(String s) {
+        if (DEBUG) {
             System.err.println(s);
         }
     }
 
-    static void log(String s, SSLEngineResult r) {
-        if (!debug) {
-            return;
+    private static void log(String s, SSLEngineResult r) {
+        if (DEBUG) {
+            System.err.println(s + ": " +
+                r.getStatus() + "/" + r.getHandshakeStatus() + " " +
+                r.bytesConsumed() + "/" + r.bytesProduced());
         }
-        System.err.println(s + ": " +
-            r.getStatus() + "/" + r.getHandshakeStatus()+ " " +
-            r.bytesConsumed() + "/" + r.bytesProduced() + " ");
-
     }
 
-    void write() throws Exception {
+    private static void dumpBuffers(String aName, ByteBuffer a) {
+        if (DEBUG) {
+            System.err.println(aName + " pos=" + a.position() +
+                " rem=" + a.remaining() +
+                " lim=" + a.limit() + " cap=" + a.capacity());
+        }
+    }
+
+    void writeLoop() throws Exception {
         int i = 0;
         SSLEngineResult r;
-        int countdown = 5;
+        int countdown = COUNTDOWNLIMIT;
 
         while (!ready) {
             Thread.sleep(delay);
         }
-        print("Write-side. ");
 
-        while (i++ < 150) {
+        print("Write-side begins");
+
+        while (i++ < MAXLOOPS) {
             while (sc) {
-                if (readdone) {
+                if (readDone) {
                     return;
                 }
                 Thread.sleep(delay);
             }
 
-            outdata.rewind();
-            print("write wrap");
+            outData.rewind();
 
             while (true) {
-                r = eng.wrap(outdata, getWriteBuf());
+                r = engine.wrap(outData, getWriteBuf());
                 log("write wrap", r);
-                if (debug && r.getStatus() != SSLEngineResult.Status.OK) {
-                    print("outdata pos: " + outdata.position() +
-                        " rem: " + outdata.remaining() +
-                        " lim: " + outdata.limit() +
-                        " cap: " + outdata.capacity());
-                    print("writebuf pos: " + getWriteBuf().position() +
-                        " rem: " + getWriteBuf().remaining() +
-                        " lim: " + getWriteBuf().limit() +
-                        " cap: " + getWriteBuf().capacity());
+
+                if (DEBUG && r.getStatus() != SSLEngineResult.Status.OK) {
+                    dumpBuffers("outData", outData);
+                    dumpBuffers("writeBuf", getWriteBuf());
                 }
+
                 if (r.getStatus() == SSLEngineResult.Status.OK &&
                     r.getHandshakeStatus() ==
                         SSLEngineResult.HandshakeStatus.NEED_WRAP) {
@@ -225,11 +253,14 @@ public class KeyUpdateOnce extends SSLContextTemplate{
                 }
                 break;
             }
-            doTask(r, eng);
+
+            doTask(r, engine);
+
             getWriteBuf().flip();
             sc = true;
+
             while (sc) {
-                if (readdone) {
+                if (readDone) {
                     return;
                 }
                 Thread.sleep(delay);
@@ -243,40 +274,36 @@ public class KeyUpdateOnce extends SSLContextTemplate{
                 countdown--;
             }
             System.err.println("Write side readLimit = " + rlimit);
-            if (countdown == 5 || countdown <= 0) {
-                buf.clear();
-                r = eng.unwrap(getReadBuf(), buf);
+
+            if (countdown == COUNTDOWNLIMIT || countdown <= 0) {
+                inData.clear();
+                r = engine.unwrap(getReadBuf(), inData);
                 log("write unwrap", r);
-                if (debug && r.getStatus() != SSLEngineResult.Status.OK) {
-                    print("buf pos: " + buf.position() +
-                        " rem: " + buf.remaining() +
-                        " lim: " + buf.limit() +
-                        " cap: " + buf.capacity());
-                    print("readbuf pos: " + getReadBuf().position() +
-                        " rem: " + getReadBuf().remaining() +
-                        " lim: " + getReadBuf().limit() +
-                        " cap:"  + getReadBuf().capacity());
+
+                if (DEBUG && r.getStatus() != SSLEngineResult.Status.OK) {
+                    dumpBuffers("inData", inData);
+                    dumpBuffers("readBuf", getReadBuf());
                 }
+            } else {
+                print("write side unwrap skipped");
             }
-            doTask(r, eng);
+
+            doTask(r, engine);
             getReadBuf().compact();
-            print("compacted readbuf pos: " + getReadBuf().position() +
-                " rem: " + getReadBuf().remaining() +
-                " lim: " + getReadBuf().limit() +
-                " cap: " + getReadBuf().capacity());
+            dumpBuffers("compacted getReadBuf()", getReadBuf());
             sc = true;
         }
     }
 
-    void read() throws Exception {
+    void readLoop() throws Exception {
         byte b = 0x0B;
-        ByteBuffer buf2 = ByteBuffer.allocateDirect(dataLen);
-        SSLEngineResult r = null;
-        boolean exit, again = true;
-        int countdown = 5;
-        boolean firstOccurance = false;
+        ByteBuffer buf = ByteBuffer.allocateDirect(DATALEN);
 
-        while (eng == null) {
+        SSLEngineResult r = null;
+        boolean again = true;
+        boolean firstNotHandshake = false;
+
+        while (engine == null) {
             Thread.sleep(delay);
         }
 
@@ -284,41 +311,39 @@ public class KeyUpdateOnce extends SSLContextTemplate{
             System.out.println("connected");
             print("entering read loop");
             ready = true;
-            while (true) {
 
+            while (true) {
                 while (!sc) {
                     Thread.sleep(delay);
                 }
 
-                print("read wrap");
-
-                exit = false;
+                boolean exit = false;
                 while (!exit) {
-                    buf2.put(b);
-                    buf2.flip();
-                    r = eng.wrap(buf2, getWriteBuf());
+                    buf.put(b);
+                    buf.flip();
+
+                    r = engine.wrap(buf, getWriteBuf());
                     log("read wrap", r);
-                    if (debug) {
-                        print("buf2 pos: " + buf2.position() +
-                            " rem: " + buf2.remaining() +
-                            " cap: " + buf2.capacity());
-                        print("writebuf pos: " + getWriteBuf().position() +
-                            " rem: " + getWriteBuf().remaining() +
-                            " cap: " + getWriteBuf().capacity());
+
+                    if (DEBUG) {
+                        dumpBuffers("buf", buf);
+                        dumpBuffers( "writeBuf", getWriteBuf());
                     }
+
                     if (again && r.getStatus() == SSLEngineResult.Status.OK &&
                         r.getHandshakeStatus() ==
                             SSLEngineResult.HandshakeStatus.NEED_WRAP) {
-                        buf2.compact();
+                        buf.compact();
                         again = false;
                         continue;
                     }
                     exit = true;
                 }
-                doTask(r, eng);
-                buf2.clear();
-                getWriteBuf().flip();
 
+                doTask(r, engine);
+
+                buf.clear();
+                getWriteBuf().flip();
                 sc = false;
 
                 while (!sc) {
@@ -326,69 +351,62 @@ public class KeyUpdateOnce extends SSLContextTemplate{
                 }
 
                 while (true) {
-                    buf.clear();
-                    r = eng.unwrap(getReadBuf(), buf);
+                    inData.clear();
+                    r = engine.unwrap(getReadBuf(), inData);
                     log("read unwrap", r);
-                    if (debug &&
-                        r.getStatus() != SSLEngineResult.Status.OK) {
-                        print("buf pos " + buf.position() +
-                            " rem: " + buf.remaining() +
-                            " lim: " + buf.limit() +
-                            " cap: " + buf.capacity());
-                        print("readbuf pos: " + getReadBuf().position() +
-                            " rem: " + getReadBuf().remaining() +
-                            " lim: " + getReadBuf().limit() +
-                            " cap: " + getReadBuf().capacity());
-                        doTask(r, eng);
+
+                    if (DEBUG && r.getStatus() != SSLEngineResult.Status.OK) {
+                        dumpBuffers("inData", inData);
+                        dumpBuffers("readBuf", getReadBuf());
+
+                        doTask(r, engine);
                     }
 
                     if (again && r.getStatus() == SSLEngineResult.Status.OK &&
                         r.getHandshakeStatus() ==
                             SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
-                        buf.clear();
+                        inData.clear();
                         print("again");
                         again = false;
                         continue;
-
                     }
                     break;
                 }
-                buf.clear();
+
+                inData.clear();
                 getReadBuf().compact();
 
                 totalDataLen += r.bytesProduced();
                 sc = false;
-                System.err.println("rstatus = " + r.getHandshakeStatus());
-                if (!firstOccurance &&
-                    r.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
-                    if (countdown == 0) {
-                        try {
-                            readSideInputRecord = getInputRecord(eng);
-                            setReadLimit(readSideInputRecord, newLimit);
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
-                        }
-                        System.err.println("Resetting readside");
-                        firstOccurance = true;
 
+                if (!firstNotHandshake &&
+                    r.getHandshakeStatus() ==
+                        SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
+
+                    try {
+                        readSideInputRecord = getInputRecord(engine);
+                        setReadLimit(readSideInputRecord, newLimit);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
                     }
-                    countdown--;
+                    System.err.println("Resetting readside");
+                    firstNotHandshake = true;
                 }
             }
         } catch (Exception e) {
             sc = false;
-            readdone = true;
+            readDone = true;
+
             System.out.println(e.getMessage());
             e.printStackTrace();
             System.out.println("Total data read = " + totalDataLen);
         }
     }
 
-    static Object readSideInputRecord  = null;
+    // Overridden in Server/Client
     ByteBuffer getReadBuf() {
         return null;
     }
-
     ByteBuffer getWriteBuf() {
         return null;
     }
@@ -403,25 +421,28 @@ public class KeyUpdateOnce extends SSLContextTemplate{
     }
 
     static Object getInputRecord(SSLEngine eng) throws Exception {
-        Class<?> Cls = Class.forName("sun.security.ssl.SSLEngineImpl");
-        var conContext = getPrivate(eng, Cls, "conContext");
+        Class<?> engineImplCls = Class.forName("sun.security.ssl.SSLEngineImpl");
+        Object conContext = getPrivate(eng, engineImplCls, "conContext");
+
         Class<?> transportCtxCls = Class.forName("sun.security.ssl.TransportContext");
         return getPrivate(conContext, transportCtxCls, "inputRecord");
     }
 
     static void setReadLimit(Object inputRecord, long newCountdown) throws Exception {
         Class<?> inputRecordCls = Class.forName("sun.security.ssl.InputRecord");
-        var readCipher = getPrivate(inputRecord, inputRecordCls, "readCipher");
-        var sslReadCipher = readCipher.getClass().getSuperclass();
-        Field f = getField(sslReadCipher,"keyLimitCountdown");
+        Object readCipher = getPrivate(inputRecord, inputRecordCls, "readCipher");
+        Class<?> sslReadCipher = readCipher.getClass().getSuperclass();
+
+        Field f = getField(sslReadCipher, "keyLimitCountdown");
         f.setLong(readCipher, newCountdown);
     }
 
     static long getReadLimit(Object inputRecord) throws Exception {
         Class<?> inputRecordCls = Class.forName("sun.security.ssl.InputRecord");
-        var readCipher = getPrivate(inputRecord, inputRecordCls, "readCipher");
-        var sslReadCipher = readCipher.getClass().getSuperclass();
-        Field f = getField(sslReadCipher,"keyLimitCountdown");
+        Object readCipher = getPrivate(inputRecord, inputRecordCls, "readCipher");
+        Class<?> sslReadCipher = readCipher.getClass().getSuperclass();
+
+        Field f = getField(sslReadCipher, "keyLimitCountdown");
         return f.getLong(readCipher);
     }
 
@@ -438,24 +459,25 @@ public class KeyUpdateOnce extends SSLContextTemplate{
     static class Server extends KeyUpdateOnce implements Runnable {
         Server(String cipherSuite) throws Exception {
             super();
-            eng = initContext().createSSLEngine();
-            eng.setUseClientMode(false);
-            eng.setNeedClientAuth(true);
+            engine = initContext().createSSLEngine();
+            engine.setUseClientMode(false);
+            engine.setNeedClientAuth(true);
+
             if (cipherSuite != null && !cipherSuite.isEmpty()) {
-                eng.setEnabledCipherSuites(new String[] { cipherSuite });
+                engine.setEnabledCipherSuites(new String[] { cipherSuite });
             }
         }
 
+        @Override
         public void run() {
             try {
-                if (serverwrite) {
-                    write();
+                if (serverWrites) {
+                    writeLoop();
                 } else {
-                    read();
+                    readLoop();
                 }
-
             } catch (Exception e) {
-                    System.out.println("server: " + e.getMessage());
+                System.out.println("server: " + e.getMessage());
                 e.printStackTrace();
             }
             System.out.println("Server closed");
@@ -463,28 +485,29 @@ public class KeyUpdateOnce extends SSLContextTemplate{
 
         @Override
         ByteBuffer getWriteBuf() {
-                return sToc;
-            }
+            return sToc;
+        }
+
         @Override
         ByteBuffer getReadBuf() {
-                return cTos;
-            }
+            return cTos;
+        }
     }
-
 
     static class Client extends KeyUpdateOnce implements Runnable {
         Client() throws Exception {
             super();
-            eng = initContext().createSSLEngine();
-            eng.setUseClientMode(true);
+            engine = initContext().createSSLEngine();
+            engine.setUseClientMode(true);
         }
 
+        @Override
         public void run() {
             try {
-                if (!serverwrite) {
-                    write();
+                if (!serverWrites) {
+                    writeLoop();
                 } else {
-                    read();
+                    readLoop();
                 }
             } catch (Exception e) {
                 System.out.println("client: " + e.getMessage());
@@ -492,14 +515,15 @@ public class KeyUpdateOnce extends SSLContextTemplate{
             }
             System.out.println("Client closed");
         }
+
         @Override
         ByteBuffer getWriteBuf() {
-                return cTos;
-            }
+            return cTos;
+        }
+
         @Override
         ByteBuffer getReadBuf() {
-                return sToc;
-            }
+            return sToc;
+        }
     }
-
 }
