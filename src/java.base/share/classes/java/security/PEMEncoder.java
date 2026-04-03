@@ -55,10 +55,7 @@ import java.util.Objects;
  * <p> Private keys can be encrypted and encoded by configuring a
  * {@code PEMEncoder} with the {@link #withEncryption(char[])} method,
  * which takes a password and returns a new {@code PEMEncoder} instance
- * configured to encrypt the key with that password. Alternatively, a
- * private key encrypted as an {@link EncryptedPrivateKeyInfo} object can be encoded
- * directly to PEM by passing it to the {@code encode} or
- * {@code encodeToString} methods.
+ * configured to encrypt the key with that password.
  *
  * <p> PKCS #8 v2.0 defines the ASN.1 OneAsymmetricKey structure, which may
  * contain both private and public keys.
@@ -257,7 +254,7 @@ public final class PEMEncoder {
      * Encodes the specified {@code BinaryEncodable} and returns a PEM-encoded
      * byte array.
      *
-     * @param be the {@code BinaryEncodable} to be encoded
+     * @param be the {@code BinaryEncodable} to encode
      * @return a PEM-encoded byte array
      * @throws IllegalArgumentException if {@code be} lacks encoding data, is
      *         an unsupported class, or cannot be used with encryption
@@ -270,13 +267,13 @@ public final class PEMEncoder {
     }
 
     /**
-     * Returns a copy of this PEMEncoder that encrypts and encodes
-     * using the specified password and default encryption algorithm.
+     * Returns a copy of this {@code PEMEncoder} configured to encrypt and
+     * encode using the specified password and the default encryption algorithm.
      *
      * <p> Only {@code PrivateKey}, {@code KeyPair}, and
      * {@code PKCS8EncodedKeySpec} objects can be encoded with this newly
-     * configured instance.  Encoding other {@code BinaryEncodable} objects will
-     * throw a {@code CryptoException}.
+     * configured instance.  Attempting to encode other {@code BinaryEncodable}
+     * objects will throw an {@code IllegalArgumentException}.
      *
      * @implNote The {@code jdk.epkcs8.defaultAlgorithm} security property
      * defines the default encryption algorithm. The {@code AlgorithmParameterSpec}

@@ -82,7 +82,7 @@ public final class PEM implements BinaryEncodable {
     /**
      * Creates a {@code PEM} instance with the specified type, Base64-encoded
      * content, and leading data. The {@code base64Content} is decoded and
-     * stored internally.
+     * stored in binary form.
      *
      * @param type the PEM type identifier; must not contain PEM syntax labels
      * @param base64Content the Base64-encoded content, excluding the PEM header
@@ -102,15 +102,16 @@ public final class PEM implements BinaryEncodable {
 
     /**
      * Creates a {@code PEM} instance with the specified type and Base64-encoded
-     * content. The {@code base64Content} is decoded and stored internally as binary.
+     * content. The {@code base64Content} is decoded and stored in binary form.
      * {@code leadingData} is set to {@code null}.
      *
-     * @param type the PEM type identifier; must not contain PEM syntax labels
+     * @param type the PEM type identifier; must not contain PEM encapsulation
+     *        syntax
      * @param base64Content the Base64-encoded content, excluding the PEM header
      *        and footer
      *
-     * @throws IllegalArgumentException if {@code type} is incorrectly formatted
-     *         or if decoding {@code base64Content} fails
+     * @throws IllegalArgumentException if {@code type} contains PEM
+     *         encapsulation syntax or if decoding {@code base64Content} fails
      * @throws NullPointerException if any parameter is {@code null}
      * @see Base64#getMimeDecoder()
      */
@@ -139,11 +140,13 @@ public final class PEM implements BinaryEncodable {
      * Creates a {@code PEM} instance with the specified type, binary content,
      * and leading data.
      *
-     * @param type the PEM type identifier; must not contain PEM syntax labels
-     * @param binaryContent binary-encoded content, such as DER
+     * @param type the PEM type identifier; must not contain PEM encapsulation
+     *        syntax
+     * @param binaryContent binary content, such as DER
      * @param leadingData data that preceded the PEM header during decoding
      *
-     * @throws IllegalArgumentException if {@code type} is incorrectly formatted
+     * @throws IllegalArgumentException if {@code type} contains PEM
+     *         encapsulation syntax
      * @throws NullPointerException if any parameter is {@code null}
      */
     public PEM(String type, byte[] binaryContent, byte[] leadingData) {
@@ -157,9 +160,10 @@ public final class PEM implements BinaryEncodable {
      * {@code leadingData} is set to {@code null}.
      *
      * @param type the PEM type identifier; must not contain PEM syntax labels
-     * @param binaryContent binary-encoded content, such as DER
+     * @param binaryContent binary content, such as DER
      *
-     * @throws IllegalArgumentException if {@code type} is incorrectly formatted
+     * @throws IllegalArgumentException if {@code type} contains PEM
+     *         encapsulation syntax
      * @throws NullPointerException if any parameter is {@code null}
      */
     public PEM(String type, byte[] binaryContent) {
@@ -181,7 +185,7 @@ public final class PEM implements BinaryEncodable {
     /**
      * Returns the PEM type identifier.
      *
-     * @return the type of this {@code PEM} object
+     * @return the PEM type identifier
      */
     public String type() {
         return type;
@@ -207,10 +211,9 @@ public final class PEM implements BinaryEncodable {
     }
 
     /**
-     * Returns the PEM-encoded string representation of this object. The
-     * {@code type} is used to generate the header and footer,
-     * and the content is Base64-encoded. {@code leadingData} is
-     * not included.
+     * Returns the PEM-encoded string representation of this object.
+     * The {@code type} is used to generate the header and footer, and the
+     * content is Base64-encoded. {@code leadingData} is not included.
      *
      * @return the PEM-formatted string
      */

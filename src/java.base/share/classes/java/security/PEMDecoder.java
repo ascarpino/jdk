@@ -46,7 +46,7 @@ import java.util.Objects;
  * PEM is a textual encoding used to store and transfer cryptographic
  * objects, such as asymmetric keys, certificates, and certificate revocation
  * lists (CRLs).  It is defined in RFC 1421 and RFC 7468. PEM consists of a
- * Base64-encoded binary encoding enclosed by a type-identifying header
+ * Base64-encoded binary data enclosed by a type-identifying header
  * and footer.
  *
  * <p>The {@link #decode(String)} and {@link #decode(InputStream)} methods
@@ -153,8 +153,8 @@ public final class PEMDecoder {
     private final static PEMDecoder PEM_DECODER = new PEMDecoder(null, null);
 
     /**
-     * Creates an instance with a specific KeyFactory and/or password.
-     * @param withFactory KeyFactory provider
+     * Creates an instance with a specific provider and/or password.
+     * @param withFactory Key/Certificate factory provider
      * @param withPassword char[] password for EncryptedPrivateKeyInfo
      *                    decryption
      */
@@ -281,7 +281,7 @@ public final class PEMDecoder {
      * leading data preceding the PEM header. For {@code BinaryEncodable} types
      * other than {@code PEM}, leading data is ignored.
      *
-     * <p> Input consumed by this method is read in as
+     * <p> The input is interpreted as
      * {@link java.nio.charset.StandardCharsets#UTF_8 UTF-8}.
      *
      * @param str a {@code String} containing PEM data
@@ -320,8 +320,8 @@ public final class PEMDecoder {
      *
      * @param is {@code InputStream} containing PEM data
      * @return a {@code BinaryEncodable}
-     * @throws IOException on IO or PEM syntax error where the
-     *         {@code InputStream} did not complete decoding
+     * @throws IOException if an I/O error occurs or PEM syntax is invalid
+     *         before decoding completes
      * @throws EOFException if no PEM data is found or the stream ends unexpectedly
      * @throws IllegalArgumentException if decoding fails
      * @throws NullPointerException when {@code is} is {@code null}
@@ -335,19 +335,20 @@ public final class PEMDecoder {
 
     /**
      * Decodes and returns a {@code BinaryEncodable} of the specified class from
-     * the given PEM string. {@code tClass} must be an appropriate class for
-     * the PEM type.
+     * the given PEM string.
      *
-     * <p> This method reads the {@code String} until PEM data is found
-     * or the end of the {@code String} is reached.  If no PEM data is found,
-     * an {@code IllegalArgumentException} is thrown.
+     * <p>{@code tClass} must be an appropriate class for the PEM type.
      *
-     * <p> If {@code tClass} is {@code PEM.class}, a {@code PEM} object is
-     * returned containing the type identifier, Base64-encoded data, and any
-     * leading data preceding the PEM header. For {@code BinaryEncodable} types
-     * other than {@code PEM}, leading data is ignored.
+     * <p>This method reads the {@code String} until PEM data is found or the end
+     * of the {@code String} is reached. If no PEM data is found, an
+     * {@code IllegalArgumentException} is thrown.
      *
-     * <p> Input consumed by this method is read in as
+     * <p>If {@code tClass} is {@code PEM.class}, a {@code PEM} object is returned
+     * containing the type identifier, Base64-encoded data, and any leading data
+     * preceding the PEM header. For {@code BinaryEncodable} types other than
+     * {@code PEM}, leading data is ignored.
+     *
+     * <p>The input is interpreted as
      * {@link java.nio.charset.StandardCharsets#UTF_8 UTF-8}.
      *
      * @param <S> the requested {@code BinaryEncodable} type
@@ -372,9 +373,10 @@ public final class PEMDecoder {
     }
 
     /**
-     * Decodes and returns a {@code BinaryEncodable} of the specified class for the
-     * given {@code InputStream}. {@code tClass} must be an appropriate class
-     * for the PEM type.
+     * Decodes and returns a {@code BinaryEncodable} of the specified class for
+     * the given {@code InputStream}.
+     *
+     * {@code tClass} must be an appropriate class for the PEM type.
      *
      * <p> This method reads from the {@code InputStream} until the end of
      * a PEM footer or the end of the stream. If an I/O error occurs,

@@ -355,9 +355,9 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
      *                 {@code Cipher} operations. If {@code null}, the default
      *                 provider list is used.
      * @return an {@code EncryptedPrivateKeyInfo}
-     * @throws NullPointerException if {@code de}, {@code password}, or
+     * @throws NullPointerException if {@code be}, {@code password}, or
      *         {@code algorithm} is {@code null}
-     * @throws IllegalArgumentException if {@code de} is an unsupported
+     * @throws IllegalArgumentException if {@code be} is an unsupported
      *         {@code BinaryEncodable}
      * @throws CryptoException if an error occurs while generating the
      *         PBE key, if {@code algorithm} or {@code params} are
@@ -394,8 +394,8 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
      * @param password the password used for PBE encryption. This array is cloned
      *                 before use.
      * @return an {@code EncryptedPrivateKeyInfo}
-     * @throws NullPointerException if {@code de} or {@code password} is {@code null}
-     * @throws IllegalArgumentException if {@code de} is an unsupported
+     * @throws NullPointerException if {@code be} or {@code password} is {@code null}
+     * @throws IllegalArgumentException if {@code be} is an unsupported
      *         {@code BinaryEncodable}
      * @throws CryptoException if an error occurs while generating the
      *         PBE key, if the default algorithm is misconfigured, or if an
@@ -435,9 +435,9 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
      * @param provider the {@code Provider} for {@code Cipher} operations.
      *                 If {@code null}, the default provider list is used.
      * @return an {@code EncryptedPrivateKeyInfo}
-     * @throws NullPointerException if {@code de}, {@code encryptKey}, or
+     * @throws NullPointerException if {@code be}, {@code encryptKey}, or
      *         {@code algorithm} is {@code null}
-     * @throws IllegalArgumentException if {@code de} is an unsupported
+     * @throws IllegalArgumentException if {@code be} is an unsupported
      *         {@code BinaryEncodable}
      * @throws CryptoException if {@code encryptKey} is invalid, if
      *         {@code algorithm} or {@code params} are not supported by any
@@ -529,7 +529,7 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
      * Extracts and returns the enclosed {@code PrivateKey} using the specified
      * decryption key.
      *
-     * @param decryptKey the decryption key. Must not be {@code null}
+     * @param decryptKey the decryption key; must not be {@code null}
      * @return the decrypted {@code PrivateKey}
      * @throws NullPointerException if {@code decryptKey} is {@code null}
      * @throws NoSuchAlgorithmException if the decryption algorithm is unsupported
@@ -590,7 +590,7 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
      * decryption key. If the encoded data does not contain both a
      * public and private key, an {@code InvalidKeyException} is thrown.
      *
-     * @param decryptKey the decryption key. Must not be {@code null}
+     * @param decryptKey the decryption key; must not be {@code null}
      * @return a decrypted {@code KeyPair}
      * @throws NullPointerException if {@code decryptKey} is {@code null}
      * @throws NoSuchAlgorithmException if the decryption algorithm is unsupported

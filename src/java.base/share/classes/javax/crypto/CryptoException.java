@@ -26,16 +26,15 @@
 package javax.crypto;
 
 /**
- * Thrown to indicate a failure during cryptographic processing at runtime.
+ * Thrown to indicate a cryptographic failure during processing.
  *
- * <p>This exception represents a general cryptographic error that occurs during
- * processing, typically used for unrecoverable failures related to
- * {@link java.security.GeneralSecurityException}, but in contexts where checked
+ * <p>This exception represents a general cryptographic error. It is typically
+ * used for unrecoverable failures related to
+ * {@link java.security.GeneralSecurityException} in contexts where checked
  * exceptions are not desired.
  *
- * <p>This exception is not intended to represent internal
- * provider errors, which should be reported using
- * {@link java.security.ProviderException}.
+ * <p>This exception is not intended to represent internal provider errors,
+ * which should be reported using {@link java.security.ProviderException}.
  *
  * @since 27
  */
