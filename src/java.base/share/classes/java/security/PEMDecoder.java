@@ -45,7 +45,7 @@ import java.util.Objects;
  * {@code PEMDecoder} implements a decoder for Privacy-Enhanced Mail (PEM) data.
  * PEM is a textual encoding used to store and transfer cryptographic
  * objects, such as asymmetric keys, certificates, and certificate revocation
- * lists (CRLs).  It is defined in RFC 1421 and RFC 7468. PEM consists of a
+ * lists (CRLs).  It is defined in RFC 1421 and RFC 7468. PEM consists of
  * Base64-encoded binary data enclosed by a type-identifying header
  * and footer.
  *
@@ -102,9 +102,9 @@ import java.util.Objects;
  *
  * <p> A new {@code PEMDecoder} instance is created when configured
  * with {@link #withFactory(Provider)} or {@link #withDecryption(char[])}.
- * The {@link #withFactory(Provider)} method uses the specified provider
- * to produce cryptographic objects from {@link KeyFactory} and
- * {@link CertificateFactory}. The {@link #withDecryption(char[])} method configures the
+ * The {@link #withFactory(Provider)} method uses the specified provider when
+ * obtaining {@link KeyFactory} and {@link CertificateFactory} instances used
+ * during decoding.  The {@link #withDecryption(char[])} method configures the
  * decoder to decrypt and decode encrypted private key PEM data using the given
  * password.  If decryption fails, an {@link IllegalArgumentException} is thrown.
  * If an encrypted PEM is processed by a decoder not configured
@@ -126,10 +126,9 @@ import java.util.Objects;
  *     BinaryEncodable pemData = pd.decode(privKeyPEM);
  *}
  *
- * @implNote This implementation decodes RSA PRIVATE KEY as {@code PrivateKey},
- * X509 CERTIFICATE and X.509 CERTIFICATE as {@code X509Certificate},
- * and CRL as {@code X509CRL}. Other implementations may recognize
- * additional PEM types.
+ * @implNote This implementation decodes non-encrypted RSA PRIVATE KEY as {@code PrivateKey},
+ * X509 CERTIFICATE and X.509 CERTIFICATE as {@code X509Certificate}, and CRL as
+ * {@code X509CRL}. Other implementations may recognize additional PEM types.
  *
  * @see PEMEncoder
  * @see PEM
@@ -155,8 +154,7 @@ public final class PEMDecoder {
     /**
      * Creates an instance with a specific provider and/or password.
      * @param withFactory Key/Certificate factory provider
-     * @param withPassword char[] password for EncryptedPrivateKeyInfo
-     *                    decryption
+     * @param withPassword password for EncryptedPrivateKeyInfo decryption
      */
     private PEMDecoder(Provider withFactory, PBEKeySpec withPassword) {
         keySpec = withPassword;
@@ -186,7 +184,7 @@ public final class PEMDecoder {
             return switch (pem.type()) {
                 case Pem.PUBLIC_KEY -> {
                     X509EncodedKeySpec spec =
-                        new X509EncodedKeySpec(pem.content());
+                        new X509EncodedKeySpec(pem.decode());
                     yield getKeyFactory(
                         KeyUtil.getAlgorithm(spec.getEncoded())).
                         generatePublic(spec);
@@ -197,10 +195,10 @@ public final class PEMDecoder {
                     PKCS8EncodedKeySpec p8spec = null;
 
                     try {
-                        p8key = new PKCS8Key(pem.content());
+                        p8key = new PKCS8Key(pem.decode());
                         String algo = p8key.getAlgorithm();
                         KeyFactory kf = getKeyFactory(algo);
-                        p8spec = new PKCS8EncodedKeySpec(pem.content(), algo);
+                        p8spec = new PKCS8EncodedKeySpec(pem.decode(), algo);
                         d = kf.generatePrivate(p8spec);
 
                         // Look for a public key inside the pkcs8 encoding.
@@ -229,7 +227,7 @@ public final class PEMDecoder {
                 }
                 case Pem.ENCRYPTED_PRIVATE_KEY -> {
                     byte[] p8 = null;
-                        var ekpi = new EncryptedPrivateKeyInfo(pem.content());
+                        var ekpi = new EncryptedPrivateKeyInfo(pem.decode());
                         if (keySpec == null) {
                             yield ekpi;
                         }
@@ -249,17 +247,17 @@ public final class PEMDecoder {
                      Pem.X_509_CERTIFICATE -> {
                     CertificateFactory cf = getCertFactory("X509");
                     yield (X509Certificate) cf.generateCertificate(
-                        new ByteArrayInputStream(pem.content()));
+                        new ByteArrayInputStream(pem.decode()));
                 }
                 case Pem.X509_CRL, Pem.CRL -> {
                     CertificateFactory cf = getCertFactory("X509");
                     yield (X509CRL) cf.generateCRL(
-                        new ByteArrayInputStream(pem.content()));
+                        new ByteArrayInputStream(pem.decode()));
                 }
                 case Pem.RSA_PRIVATE_KEY -> {
                     KeyFactory kf = getKeyFactory("RSA");
                     yield kf.generatePrivate(
-                        RSAPrivateCrtKeyImpl.getKeySpec(pem.content()));
+                        RSAPrivateCrtKeyImpl.getKeySpec(pem.decode()));
                 }
                 default -> pem;
             };

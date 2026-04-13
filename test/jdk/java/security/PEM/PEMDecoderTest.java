@@ -163,16 +163,6 @@ public class PEMDecoderTest {
         }
         System.out.println("PASS");
 
-        System.out.println("Check if PEM decode decodes content correctly");
-        final String tmpContent = "1234567";
-        final PEM tmpPem = new PEM("ONE", tmpContent);
-        if (!Arrays.equals(
-                Base64.getDecoder().decode(tmpContent),
-                tmpPem.content())) {
-            throw new AssertionError("PEM decode error");
-        }
-        System.out.println("PASS");
-
         System.out.println("Decode to EncryptedPrivateKeyInfo: ");
         EncryptedPrivateKeyInfo ekpi =
             d.decode(PEMData.ed25519ep8.pem(), EncryptedPrivateKeyInfo.class);
@@ -215,7 +205,9 @@ public class PEMDecoderTest {
         bos.write("--------\n".getBytes(StandardCharsets.ISO_8859_1));
         bos.write(PEMData.ecsecp256ekpi.pem().getBytes(StandardCharsets.ISO_8859_1));
         bis = new ByteArrayInputStream(bos.toByteArray());
-        result = d.decode(bis, PEM.class);
+        d.decode(bis, PEM.class);
+
+        d.decode(PEMData.encpkcs1, PEM.class);
     }
 
     static void testInputStream() throws IOException {

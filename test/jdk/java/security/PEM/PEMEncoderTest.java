@@ -149,6 +149,22 @@ public class PEMEncoderTest {
             throw new AssertionError("encoder tried to encrypt " +
                 "an EncryptedPrivateKeyInfo.");
         } catch (IllegalArgumentException _) {}
+
+        // Check PEM string exact
+        String expected = encoder.encodeToString(decoder.decode(
+            PEMData.ecsecp256.pem()));
+        PEMData.Entry e = PEMData.ecsecp256.makeCRLF("ecsecp256CRLF");
+        System.out.println("Exact PEM String check with CRLF only PEM:");
+        PEMData.checkResultsExact(expected, encoder.encodeToString(
+            decoder.decode(e.pem())));
+        System.out.println("Exact PEM String check with CR only PEM:");
+        e = PEMData.ecsecp256.makeCR("ecsecp256CR");
+        PEMData.checkResultsExact(expected, encoder.encodeToString(
+            decoder.decode(e.pem())));
+        System.out.println("Exact PEM String check with NoCRLF only PEM:");
+        e = PEMData.ecsecp256.makeValidNoCRLF("ecsecp256ValidNoCRLF");
+        PEMData.checkResultsExact(expected, encoder.encodeToString(
+            decoder.decode(e.pem())));
     }
 
     static Map generateObjKeyMap(List<PEMData.Entry> list) {
@@ -236,7 +252,7 @@ public class PEMEncoderTest {
         try {
             encoder.encodeToString(keymap.get(key));
         } catch (RuntimeException e) {
-            throw new AssertionError("Encrypted encoder failured with " +
+            throw new AssertionError("Encrypted encoder failed with " +
                 entry.name(), e);
         }
 

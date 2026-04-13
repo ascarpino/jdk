@@ -25,17 +25,15 @@
 
 package java.security;
 
-import sun.security.util.KeyUtil;
 import sun.security.util.Pem;
 
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Objects;
 
 /**
  * A {@link BinaryEncodable} representing a Privacy-Enhanced Mail (PEM) structure
- * composed of a type identifier, base64-decoded binary content, and any
+ * composed of a type identifier, base64-encoded content, and any
  * leading data that precedes the PEM header during decoding.
  *
  * <p>The {@code type} is the label in the PEM header, following the
@@ -56,8 +54,8 @@ import java.util.Objects;
  *
  * <p>To construct a {@code PEM} instance, both the {@code type} and content parameters
  * ({@code base64Content} or {@code binaryContent}) must be non-{@code null}.
- * If {@code base64Content} is provided, it is decoded to binary and stored.
- * The {@code binaryContent} and, if present, the {@code leadingData} are copied
+ * If {@code binaryContent} is provided, it is {@link Base64} encoded and stored.
+ * The {@code base64Content} and, if present, the {@code leadingData} are copied
  * defensively.
  *
  * <p>No validation is performed to ensure that the {@code type} conforms to
@@ -76,13 +74,12 @@ import java.util.Objects;
 public final class PEM implements BinaryEncodable {
 
     private final String type;
-    private final byte[] content;
+    private final String content;
     private byte[] leadingData;
 
     /**
      * Creates a {@code PEM} instance with the specified type, Base64-encoded
-     * content, and leading data. The {@code base64Content} is decoded and
-     * stored in binary form.
+     * content, and leading data.
      *
      * @param type the PEM type identifier; must not contain PEM syntax labels
      * @param base64Content the Base64-encoded content, excluding the PEM header
@@ -90,9 +87,7 @@ public final class PEM implements BinaryEncodable {
      * @param leadingData data that preceded the PEM header during decoding
      *
      * @throws IllegalArgumentException if {@code type} is incorrectly formatted
-     *         or if decoding {@code base64Content} fails
      * @throws NullPointerException if any parameter is {@code null}
-     * @see Base64#getMimeDecoder()
      */
     public PEM(String type, String base64Content, byte[] leadingData) {
         Objects.requireNonNull(leadingData, "leadingData cannot be null");
@@ -102,18 +97,15 @@ public final class PEM implements BinaryEncodable {
 
     /**
      * Creates a {@code PEM} instance with the specified type and Base64-encoded
-     * content. The {@code base64Content} is decoded and stored in binary form.
-     * {@code leadingData} is set to {@code null}.
+     * content. {@code leadingData} is set to {@code null}.
      *
      * @param type the PEM type identifier; must not contain PEM encapsulation
      *        syntax
      * @param base64Content the Base64-encoded content, excluding the PEM header
      *        and footer
-     *
      * @throws IllegalArgumentException if {@code type} contains PEM
-     *         encapsulation syntax or if decoding {@code base64Content} fails
+     *         encapsulation syntax
      * @throws NullPointerException if any parameter is {@code null}
-     * @see Base64#getMimeDecoder()
      */
     public PEM(String type, String base64Content) {
         Objects.requireNonNull(type, "type cannot be null");
@@ -126,13 +118,7 @@ public final class PEM implements BinaryEncodable {
             throw new IllegalArgumentException("PEM syntax labels found. " +
                 "Only the PEM type identifier is allowed.");
         }
-        // Clone to byte array
-        byte[] data = base64Content.getBytes(StandardCharsets.ISO_8859_1);
-        try {
-            content = Base64.getMimeDecoder().decode(data);
-        } finally {
-            KeyUtil.clear(data);
-        }
+        content = base64Content;
         this.type = type;
     }
 
@@ -161,7 +147,6 @@ public final class PEM implements BinaryEncodable {
      *
      * @param type the PEM type identifier; must not contain PEM syntax labels
      * @param binaryContent binary content, such as DER
-     *
      * @throws IllegalArgumentException if {@code type} contains PEM
      *         encapsulation syntax
      * @throws NullPointerException if any parameter is {@code null}
@@ -178,7 +163,7 @@ public final class PEM implements BinaryEncodable {
                 "Only the PEM type identifier is allowed.");
         }
 
-        content = binaryContent.clone();
+        content = Pem.pemEncoded(binaryContent);
         this.type = type;
     }
 
@@ -202,12 +187,23 @@ public final class PEM implements BinaryEncodable {
     }
 
     /**
-     * Returns the binary content.
+     * Returns the Base64-encoded content.
      *
-     * @return a copy of the binary content
+     * @return a string of the Base64-encoded content
      */
-    public byte[] content() {
-        return content.clone();
+    public String content() {
+        return content;
+    }
+
+    /**
+     * Returns a Base64-decoded byte array content, using
+     * {@link Base64#getMimeDecoder()}.
+     *
+     * @return a Base64-decoded byte array
+     * @throws IllegalArgumentException if decoding fails
+     */
+    public byte[] decode() {
+        return Base64.getMimeDecoder().decode(content);
     }
 
     /**
@@ -219,6 +215,6 @@ public final class PEM implements BinaryEncodable {
      */
     @Override
     public String toString() {
-        return Pem.pemEncoded(this);
+        return Pem.pemEncoded(type, content);
     }
 }

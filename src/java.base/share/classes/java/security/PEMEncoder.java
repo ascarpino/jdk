@@ -126,7 +126,7 @@ public final class PEMEncoder {
     private final Key key;
 
     /**
-     * Create an encrypted {@code PEMEncoder} instance.
+     * Creates a PEMEncoder instance configured for encryption
      */
     private PEMEncoder(PBEKeySpec keySpec) {
         if (keySpec != null) {
@@ -159,7 +159,7 @@ public final class PEMEncoder {
      *
      * @param be the {@code BinaryEncodable} to encode
      * @return a {@code String} containing the PEM-encoded data
-     * @throws IllegalArgumentException if {@code be} lacks encoding data, is
+     * @throws IllegalArgumentException if {@code be} has no encoding, is
      *         an unsupported class, or cannot be used with encryption
      * @throws NullPointerException if {@code be} is {@code null}
      * @throws CryptoException if an error occurs during encryption
@@ -256,7 +256,7 @@ public final class PEMEncoder {
      *
      * @param be the {@code BinaryEncodable} to encode
      * @return a PEM-encoded byte array
-     * @throws IllegalArgumentException if {@code be} lacks encoding data, is
+     * @throws IllegalArgumentException if {@code be} has no encoding, is
      *         an unsupported class, or cannot be used with encryption
      * @throws NullPointerException if {@code be} is {@code null}
      * @throws CryptoException if an error occurs during encryption

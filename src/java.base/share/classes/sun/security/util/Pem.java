@@ -48,7 +48,7 @@ import java.util.regex.Pattern;
  */
 public class Pem {
     private static final char WS = 0x20;  // Whitespace
-    private static final byte[] CRLF = new byte[] {'\r', '\n'};
+    public static final byte[] CRLF = new byte[] {'\r', '\n'};
 
     // Default algorithm from jdk.epkcs8.defaultAlgorithm in java.security
     public static final String DEFAULT_ALGO;
@@ -251,15 +251,23 @@ public class Pem {
         }
 
         // Read data until we find the first footer hyphen.
+        // CR & LF are allowed to support legacy PEM formats (ie: encrypted PKCS1)
         do {
             switch (c = is.read()) {
                 case -1 ->
                     throw new EOFException("Incomplete header");
                 case '-' -> hyphen++;
-                case WS, '\t', '\r', '\n' -> {} // skip whitespace and tab
-                default -> sb.append((char) c);
+                case WS, '\t' -> {} // skip whitespace and tab
+                default -> {
+                    // If reading a legacy format, allow for one dash
+                    if (hyphen == 1) {
+                        hyphen = 0;
+                        sb.append('-');
+                    }
+                    sb.append((char) c);
+                }
             }
-        } while (hyphen == 0);
+        } while (hyphen < 2);
 
         String data = sb.toString();
 
@@ -335,7 +343,7 @@ public class Pem {
         return readPEM(is, false);
     }
 
-    private static String pemEncoded(String type, String base64) {
+    public static String pemEncoded(String type, String base64) {
         return
             "-----BEGIN " + type + "-----\r\n" +
             base64 + (!base64.endsWith("\n") ? "\r\n" : "") +
@@ -348,10 +356,7 @@ public class Pem {
      * @return PEM in a string
      */
     public static String pemEncoded(String type, byte[] der) {
-        if (b64Encoder == null) {
-            b64Encoder = Base64.getMimeEncoder(64, CRLF);
-        }
-        return pemEncoded(type, b64Encoder.encodeToString(der));
+        return pemEncoded(type, pemEncoded(der));
     }
 
     /**
@@ -361,6 +366,13 @@ public class Pem {
      */
     public static String pemEncoded(PEM pem) {
         return pemEncoded(pem.type(), pem.content());
+    }
+
+    public static String pemEncoded(byte[] der) {
+        if (b64Encoder == null) {
+            b64Encoder = Base64.getMimeEncoder(64, CRLF);
+        }
+        return b64Encoder.encodeToString(der);
     }
 
     /**
