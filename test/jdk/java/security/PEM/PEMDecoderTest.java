@@ -396,7 +396,7 @@ public class PEMDecoderTest {
             PEMDecoder pemDecoder;
             if (withFactory) {
                 Provider provider = Security.getProvider(entry.provider());
-                pemDecoder = d.withFactory(provider);
+                pemDecoder = d.withFactoryFrom(provider);
             } else {
                 pemDecoder = d;
             }

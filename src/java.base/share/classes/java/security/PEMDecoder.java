@@ -101,8 +101,8 @@ import java.util.Objects;
  * </ul>
  *
  * <p> A new {@code PEMDecoder} instance is created when configured
- * with {@link #withFactory(Provider)} or {@link #withDecryption(char[])}.
- * The {@link #withFactory(Provider)} method uses the specified provider when
+ * with {@link #withFactoryFrom(Provider)} or {@link #withDecryption(char[])}.
+ * The {@link #withFactoryFrom(Provider)} method uses the specified provider when
  * obtaining {@link KeyFactory} and {@link CertificateFactory} instances used
  * during decoding.  The {@link #withDecryption(char[])} method configures the
  * decoder to decrypt and decode encrypted private key PEM data using the given
@@ -503,7 +503,7 @@ public final class PEMDecoder {
      * @return a new {@code PEMDecoder} instance configured with the {@code Provider}
      * @throws NullPointerException if {@code provider} is {@code null}
      */
-    public PEMDecoder withFactory(Provider provider) {
+    public PEMDecoder withFactoryFrom(Provider provider) {
         Objects.requireNonNull(provider);
         return new PEMDecoder(provider, keySpec);
     }
