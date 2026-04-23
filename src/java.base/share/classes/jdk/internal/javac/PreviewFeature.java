@@ -87,7 +87,6 @@ public @interface PreviewFeature {
         STRUCTURED_CONCURRENCY,
         @JEP(number = 526, title = "Lazy Constants", status = "Second Preview")
         LAZY_CONSTANTS,
-        PEM_API, // Remove when JDK27 becomes the bootstrap JDK
         LANGUAGE_MODEL,
         /**
          * A key for testing.

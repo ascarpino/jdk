@@ -219,7 +219,7 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
     }
 
     /**
-     * Create an EncryptedPrivateKeyInfo object from the given components
+     * Create an EncryptedPrivateKeyInfo object from the given components.
      */
     private EncryptedPrivateKeyInfo(byte[] encoded, byte[] eData,
         AlgorithmId id, AlgorithmParameters p) {
@@ -263,8 +263,8 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
     }
 
     /**
-     * Extract the enclosed PKCS8EncodedKeySpec object from the
-     * encrypted data and return it.
+     * Extracts the enclosed PKCS8EncodedKeySpec object from the
+     * encrypted data and returns it.
      * <br>Note: In order to successfully retrieve the enclosed
      * PKCS8EncodedKeySpec object, {@code cipher} needs
      * to be initialized to either Cipher.DECRYPT_MODE or
@@ -281,7 +281,7 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
      */
     public PKCS8EncodedKeySpec getKeySpec(Cipher cipher)
         throws InvalidKeySpecException {
-        byte[] encoded;
+        byte[] encoded = null;
         try {
             encoded = cipher.doFinal(encryptedData);
             return pkcs8EncodingToSpec(encoded);
@@ -290,6 +290,8 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
                  IllegalStateException ex) {
             throw new InvalidKeySpecException(
                     "Cannot retrieve the PKCS8EncodedKeySpec", ex);
+        } finally {
+            KeyUtil.clear(encoded);
         }
     }
 
@@ -358,7 +360,7 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
      * @throws NullPointerException if {@code be}, {@code password}, or
      *         {@code algorithm} is {@code null}
      * @throws IllegalArgumentException if {@code be} is an unsupported
-     *         {@code BinaryEncodable}
+     *         {@code BinaryEncodable} or has no encoding.
      * @throws CryptoException if an error occurs while generating the
      *         PBE key, if {@code algorithm} or {@code params} are
      *         not supported by any provider, or if an error occurs during
@@ -438,7 +440,7 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
      * @throws NullPointerException if {@code be}, {@code encryptKey}, or
      *         {@code algorithm} is {@code null}
      * @throws IllegalArgumentException if {@code be} is an unsupported
-     *         {@code BinaryEncodable}
+     *         {@code BinaryEncodable} or has no encoding
      * @throws CryptoException if {@code encryptKey} is invalid, if
      *         {@code algorithm} or {@code params} are not supported by any
      *         provider, or if an error occurs during encryption
@@ -603,8 +605,14 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
         throws NoSuchAlgorithmException, InvalidKeyException {
         Objects.requireNonNull(decryptKey,"a decryptKey must be specified");
 
-        BinaryEncodable d = Pem.toPKCS8Encodable(
-            decryptData(decryptKey, null),true, null);
+        BinaryEncodable d;
+        byte[] data = null;
+        try {
+            data = decryptData(decryptKey, null);
+            d = Pem.toPKCS8Encodable(data, true, null);
+        } finally {
+            KeyUtil.clear(data);
+        }
         return switch (d) {
             case KeyPair kp -> kp;
             case PrivateKey ignored -> throw new InvalidKeyException(
@@ -615,8 +623,8 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
     }
 
     /**
-     * Extract the enclosed PKCS8EncodedKeySpec object from the
-     * encrypted data and return it.
+     * Extracts the enclosed PKCS8EncodedKeySpec object from the
+     * encrypted data and returns it.
      * @param decryptKey key used for decrypting the encrypted data.
      * @return the PKCS8EncodedKeySpec object with a specified algorithm
      * @exception NullPointerException if {@code decryptKey}
@@ -625,7 +633,7 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
      * cipher to decrypt the encrypted data.
      * @exception InvalidKeyException if {@code decryptKey}
      * cannot be used to decrypt the encrypted data or the decryption
-     * result is not a valid PKCS8KeySpec.
+     * result is not a valid PKCS8EncodedKeySpec.
      *
      * @since 1.5
      */
@@ -638,8 +646,8 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
     }
 
     /**
-     * Extract the enclosed PKCS8EncodedKeySpec object from the
-     * encrypted data and return it.
+     * Extracts the enclosed PKCS8EncodedKeySpec object from the
+     * encrypted data and returns it.
      * @param decryptKey key used for decrypting the encrypted data.
      * @param providerName the name of provider whose cipher
      * implementation will be used.
@@ -652,7 +660,7 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
      * cipher to decrypt the encrypted data.
      * @exception InvalidKeyException if {@code decryptKey}
      * cannot be used to decrypt the encrypted data or the decryption
-     * result is not a valid PKCS8KeySpec.
+     * result is not a valid PKCS8EncodedKeySpec.
      *
      * @since 1.5
      */
@@ -660,7 +668,7 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
         String providerName) throws NoSuchProviderException,
         NoSuchAlgorithmException, InvalidKeyException {
         Objects.requireNonNull(decryptKey, "decryptKey is null");
-        Objects.requireNonNull(providerName, "provider is null");
+        Objects.requireNonNull(providerName, "providerName is null");
         Provider provider = Security.getProvider(providerName);
         if (provider == null) {
             throw new NoSuchProviderException("provider " +
@@ -670,11 +678,10 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
     }
 
     /**
-     * Extract the enclosed PKCS8EncodedKeySpec object from the
-     * encrypted data and return it.
+     * Extracts the enclosed PKCS8EncodedKeySpec object from the
+     * encrypted data and returns it.
      * @param decryptKey key used for decrypting the encrypted data.
-     * @param provider the name of provider whose cipher implementation
-     * will be used.
+     * @param provider the provider whose cipher implementation will be used.
      * @return the PKCS8EncodedKeySpec object with a specified algorithm
      * @exception NullPointerException if {@code decryptKey}
      * or {@code provider} is {@code null}.
@@ -682,7 +689,7 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
      * cipher to decrypt the encrypted data in {@code provider}.
      * @exception InvalidKeyException if {@code decryptKey}
      * cannot be used to decrypt the encrypted data or the decryption
-     * result is not a valid PKCS8KeySpec.
+     * result is not a valid PKCS8EncodedKeySpec.
      *
      * @since 1.5
      */
@@ -737,20 +744,24 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
 
     // Return the PKCS#8 encoding from a BinaryEncodable
     private static byte[] getEncoding(BinaryEncodable d) {
-        return switch (d) {
-            case PrivateKey p -> p.getEncoded();
-            case PKCS8EncodedKeySpec p8 -> p8.getEncoded();
-            case KeyPair kp -> {
-                try {
-                    yield PKCS8Key.getEncoded(kp.getPublic().getEncoded(),
-                        kp.getPrivate().getEncoded());
-                } catch (IOException e) {
-                    throw new IllegalArgumentException(e);
+        try {
+            return switch (d) {
+                case PrivateKey p -> p.getEncoded();
+                case PKCS8EncodedKeySpec p8 -> p8.getEncoded();
+                case KeyPair kp -> {
+                    try {
+                        yield PKCS8Key.getEncoded(kp.getPublic().getEncoded(),
+                            kp.getPrivate().getEncoded());
+                    } catch (IOException e) {
+                        throw new IllegalArgumentException(e);
+                    }
                 }
-            }
-            default -> throw new IllegalArgumentException(
-                d.getClass().getName() + " not supported by this method");
-        };
+                default -> throw new IllegalArgumentException(
+                    d.getClass().getName() + " not supported by this method");
+            };
+        } catch (NullPointerException e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 
     // Generate a SecretKey from the password.

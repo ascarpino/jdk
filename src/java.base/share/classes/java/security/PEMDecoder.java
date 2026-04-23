@@ -45,7 +45,7 @@ import java.util.Objects;
  * {@code PEMDecoder} implements a decoder for Privacy-Enhanced Mail (PEM) data.
  * PEM is a textual encoding used to store and transfer cryptographic
  * objects, such as asymmetric keys, certificates, and certificate revocation
- * lists (CRLs).  It is defined in RFC 1421 and RFC 7468. PEM consists of
+ * lists (CRLs). It is defined in RFC 1421 and RFC 7468. PEM consists of
  * Base64-encoded binary data enclosed by a type-identifying header
  * and footer.
  *
@@ -53,17 +53,17 @@ import java.util.Objects;
  * return an instance of a class that matches the PEM type and implements
  * {@link BinaryEncodable}, as follows:
  * <ul>
- *   <li>CERTIFICATE : {@link X509Certificate}</li>
- *   <li>X509 CRL : {@link X509CRL}</li>
- *   <li>PUBLIC KEY : {@link PublicKey}</li>
- *   <li>PRIVATE KEY : {@link PrivateKey} or {@link KeyPair}
+ *   <li>CERTIFICATE: {@link X509Certificate}</li>
+ *   <li>X509 CRL: {@link X509CRL}</li>
+ *   <li>PUBLIC KEY: {@link PublicKey}</li>
+ *   <li>PRIVATE KEY: {@link PrivateKey} or {@link KeyPair}
  *   (if the encoding contains a public key)</li>
- *   <li>ENCRYPTED PRIVATE KEY : {@link EncryptedPrivateKeyInfo}</li>
- *   <li>Other types : {@link PEM}</li>
+ *   <li>ENCRYPTED PRIVATE KEY: {@link EncryptedPrivateKeyInfo}</li>
+ *   <li>Other types: {@link PEM}</li>
  * </ul>
  * When used with a {@code PEMDecoder} instance configured for decryption:
  * <ul>
- *   <li>ENCRYPTED PRIVATE KEY : {@link PrivateKey} or {@link KeyPair}
+ *   <li>ENCRYPTED PRIVATE KEY: {@link PrivateKey} or {@link KeyPair}
  *   (if the encoding contains a public key)</li>
  * </ul>
  *
@@ -88,25 +88,25 @@ import java.util.Objects;
  * following PEM types and {@code BinaryEncodable} classes when specified as
  * parameters:
  *  <ul>
- *   <li>PUBLIC KEY : {@link X509EncodedKeySpec}</li>
- *   <li>PRIVATE KEY : {@link PKCS8EncodedKeySpec}</li>
- *   <li>PRIVATE KEY : {@link PublicKey} (if the encoding contains a public key)</li>
- *   <li>PRIVATE KEY : {@link X509EncodedKeySpec} (if the encoding contains a public key)</li>
+ *   <li>PUBLIC KEY: {@link X509EncodedKeySpec}</li>
+ *   <li>PRIVATE KEY: {@link PKCS8EncodedKeySpec}</li>
+ *   <li>PRIVATE KEY: {@link PublicKey} (if the encoding contains a public key)</li>
+ *   <li>PRIVATE KEY: {@link X509EncodedKeySpec} (if the encoding contains a public key)</li>
  * </ul>
  * When used with a {@code PEMDecoder} instance configured for decryption:
  * <ul>
- *   <li>ENCRYPTED PRIVATE KEY : {@link PKCS8EncodedKeySpec}</li>
- *   <li>ENCRYPTED PRIVATE KEY : {@link PublicKey} (if the encoding contains a public key)</li>
- *   <li>ENCRYPTED PRIVATE KEY : {@link X509EncodedKeySpec} (if the encoding contains a public key)</li>
+ *   <li>ENCRYPTED PRIVATE KEY: {@link PKCS8EncodedKeySpec}</li>
+ *   <li>ENCRYPTED PRIVATE KEY: {@link PublicKey} (if the encoding contains a public key)</li>
+ *   <li>ENCRYPTED PRIVATE KEY: {@link X509EncodedKeySpec} (if the encoding contains a public key)</li>
  * </ul>
  *
  * <p> A new {@code PEMDecoder} instance is created when configured
  * with {@link #withFactoryFrom(Provider)} or {@link #withDecryption(char[])}.
  * The {@link #withFactoryFrom(Provider)} method uses the specified provider when
  * obtaining {@link KeyFactory} and {@link CertificateFactory} instances used
- * during decoding.  The {@link #withDecryption(char[])} method configures the
+ * during decoding. The {@link #withDecryption(char[])} method configures the
  * decoder to decrypt and decode encrypted private key PEM data using the given
- * password.  If decryption fails, an {@link IllegalArgumentException} is thrown.
+ * password. If decryption fails, an {@link CryptoException} is thrown.
  * If an encrypted PEM is processed by a decoder not configured
  * for decryption, an {@link EncryptedPrivateKeyInfo} is returned.
  * A {@code PEMDecoder} configured for decryption can also decode unencrypted PEM.
@@ -122,7 +122,7 @@ import java.util.Objects;
  * <p> Example: configure decryption and a factory provider:
  * {@snippet lang = java:
  *     PEMDecoder pd = PEMDecoder.of().withDecryption(password).
- *             withFactory(provider);
+ *             withFactoryFrom(provider);
  *     BinaryEncodable pemData = pd.decode(privKeyPEM);
  *}
  *
@@ -270,7 +270,7 @@ public final class PEMDecoder {
      * Decodes and returns a {@code BinaryEncodable} from the given {@code String}.
      *
      * <p> This method reads the {@code String} until PEM data is found
-     * or the end of the {@code String} is reached.  If no PEM data is found,
+     * or the end of the {@code String} is reached. If no PEM data is found,
      * an {@code IllegalArgumentException} is thrown.
      *
      * <p> A {@code BinaryEncodable} is returned that best represents the
@@ -305,7 +305,7 @@ public final class PEMDecoder {
      *
      * <p> This method reads from the {@code InputStream} until the end of
      * a PEM footer or the end of the stream. If an I/O error occurs,
-     * the stream position may become inconsistent.  Further decoding
+     * the stream position may become inconsistent. Further decoding
      * operations on the same {@code InputStream} are not recommended.
      *
      * <p> A {@code BinaryEncodable} is returned that best represents the
@@ -395,7 +395,7 @@ public final class PEMDecoder {
      * @param tClass the returned object class that extends or implements
      *        {@code BinaryEncodable}
      * @return a {@code BinaryEncodable} of type {@code tClass}
-     * @throws IOException on IO or PEM syntax error where the
+     * @throws IOException on I/O or PEM syntax error where the
      *         {@code InputStream} did not complete decoding
      * @throws EOFException if no PEM data is found or the stream ends unexpectedly
      * @throws IllegalArgumentException if decoding fails
@@ -412,7 +412,7 @@ public final class PEMDecoder {
         Objects.requireNonNull(tClass);
         PEM pem = Pem.readPEM(is);
 
-        if (tClass.isAssignableFrom(PEM.class)) {
+        if (tClass == PEM.class) {
             return tClass.cast(pem);
         }
         BinaryEncodable so = decode(pem);
@@ -505,7 +505,8 @@ public final class PEMDecoder {
      */
     public PEMDecoder withFactoryFrom(Provider provider) {
         Objects.requireNonNull(provider);
-        return new PEMDecoder(provider, keySpec);
+        return new PEMDecoder(provider,
+            (keySpec == null ? null : new PBEKeySpec(keySpec.getPassword())));
     }
 
     /**

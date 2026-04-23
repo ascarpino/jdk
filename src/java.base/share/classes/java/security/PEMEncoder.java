@@ -43,7 +43,7 @@ import java.util.Objects;
  * {@code PEMEncoder} implements an encoder for Privacy-Enhanced Mail (PEM)
  * data.  PEM is a textual encoding used to store and transfer cryptographic
  * objects, such as asymmetric keys, certificates, and certificate revocation
- * lists (CRLs).  It is defined in RFC 1421 and RFC 7468.  PEM consists of a
+ * lists (CRLs). It is defined in RFC 1421 and RFC 7468.  PEM consists of a
  * Base64-encoded binary encoding enclosed by a type-identifying header
  * and footer.
  *
@@ -69,23 +69,23 @@ import java.util.Objects;
  * included in the output.
  *
  * <p> The following lists the supported {@code BinaryEncodable} classes and
- * the PEM types they encode as:
+ * the PEM types they encode to:
  * <ul>
- *   <li>{@link X509Certificate} : CERTIFICATE</li>
- *   <li>{@link X509CRL} : X509 CRL</li>
- *   <li>{@link PublicKey} : PUBLIC KEY</li>
- *   <li>{@link PrivateKey} : PRIVATE KEY</li>
- *   <li>{@link EncryptedPrivateKeyInfo} : ENCRYPTED PRIVATE KEY</li>
- *   <li>{@link KeyPair} : PRIVATE KEY</li>
- *   <li>{@link X509EncodedKeySpec} : PUBLIC KEY</li>
- *   <li>{@link PKCS8EncodedKeySpec} : PRIVATE KEY</li>
- *   <li>{@link PEM} : {@code PEM.type()}</li>
+ *   <li>{@link X509Certificate}: CERTIFICATE</li>
+ *   <li>{@link X509CRL}: X509 CRL</li>
+ *   <li>{@link PublicKey}: PUBLIC KEY</li>
+ *   <li>{@link PrivateKey}: PRIVATE KEY</li>
+ *   <li>{@link EncryptedPrivateKeyInfo}: ENCRYPTED PRIVATE KEY</li>
+ *   <li>{@link KeyPair}: PRIVATE KEY</li>
+ *   <li>{@link X509EncodedKeySpec}: PUBLIC KEY</li>
+ *   <li>{@link PKCS8EncodedKeySpec}: PRIVATE KEY</li>
+ *   <li>{@link PEM}: {@link PEM#type()}</li>
  * </ul>
  * <p> When used with a {@code PEMEncoder} instance configured for encryption:
  * <ul>
- *   <li>{@link PrivateKey} : ENCRYPTED PRIVATE KEY</li>
- *   <li>{@link KeyPair} : ENCRYPTED PRIVATE KEY</li>
- *   <li>{@link PKCS8EncodedKeySpec} : ENCRYPTED PRIVATE KEY</li>
+ *   <li>{@link PrivateKey}: ENCRYPTED PRIVATE KEY</li>
+ *   <li>{@link KeyPair}: ENCRYPTED PRIVATE KEY</li>
+ *   <li>{@link PKCS8EncodedKeySpec}: ENCRYPTED PRIVATE KEY</li>
  * </ul>
  *
  * <p> This class is immutable and thread-safe.
@@ -103,7 +103,6 @@ import java.util.Objects;
  * }
  *
  * @implNote Implementations may support additional PEM types.
- *
  *
  * @see PEMDecoder
  * @see PEM
@@ -126,7 +125,7 @@ public final class PEMEncoder {
     private final Key key;
 
     /**
-     * Creates a PEMEncoder instance configured for encryption
+     * Creates a PEMEncoder instance configured for the given keySpec.
      */
     private PEMEncoder(PBEKeySpec keySpec) {
         if (keySpec != null) {
@@ -272,7 +271,7 @@ public final class PEMEncoder {
      *
      * <p> Only {@code PrivateKey}, {@code KeyPair}, and
      * {@code PKCS8EncodedKeySpec} objects can be encoded with this newly
-     * configured instance.  Attempting to encode other {@code BinaryEncodable}
+     * configured instance. Attempting to encode other {@code BinaryEncodable}
      * objects will throw an {@code IllegalArgumentException}.
      *
      * @implNote The {@code jdk.epkcs8.defaultAlgorithm} security property
@@ -286,7 +285,7 @@ public final class PEMEncoder {
      * @param password the encryption password.  The array is cloned and
      *                 stored in the new instance.
      * @return a new {@code PEMEncoder} instance configured for encryption
-     * @throws NullPointerException if password is {@code null}
+     * @throws NullPointerException if {@code password} is {@code null}
      * @throws CryptoException if generating the encryption key fails
      */
     public PEMEncoder withEncryption(char[] password) {
@@ -300,9 +299,9 @@ public final class PEMEncoder {
     }
 
     /**
-     * Build PEM encoding.
+     * Build the PEM encoding.
      *
-     * privateKeyEncoding will be zeroed when the method returns
+     * privateEncoding will be zeroed when the method returns.
      */
     private String buildKey(byte[] publicEncoding, byte[] privateEncoding) {
         if (publicEncoding == null && privateEncoding == null) {
