@@ -677,7 +677,7 @@ class PEMData {
 
     private static String toChar(char c) {
         return switch (c) {
-            case ' ' -> "sp";
+            case '\s' -> "sp";
             case '\t' -> "tab";
             default -> String.valueOf(c);
         };
