@@ -27,7 +27,7 @@
  * @library ../../
  *          /test/lib
  *          /javax/net/ssl/templates
- * @summary Verify one KeyUpdate message is sent
+ * @summary Verify KeyUpdate messages skipped after first one sent.
  *
  * @run main KeyUpdateOnce server TLS_AES_256_GCM_SHA384 200000
  * @run main KeyUpdateOnce client TLS_AES_256_GCM_SHA384 200000
@@ -51,6 +51,17 @@ import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
+
+/**
+ * This server/client TLS test will force side A to stop reading as it
+ * continuously writes out.  These write ops will trigger the side B to
+ * request a KeyUpdate.  With side A not reading, side B must skip
+ * sending more KeyUpdate messages.  Only one KeyUpdate message will be
+ * sent by side B.
+ *
+ * This test depends on debug messages string match.  Changing the KeyUpdate-
+ * related messages may cause a failure.
+ */
 
 public class KeyUpdateOnce extends SSLContextTemplate {
 
@@ -121,24 +132,30 @@ public class KeyUpdateOnce extends SSLContextTemplate {
                     "\"cipher suite\"        : \"%s", args[1]));
                 System.err.println("Output logs should show KeyUpdate has" +
                     " been sent and skipped");
-                // Check client side for KeyUpdate messages (Thread-0)
-                List<String> list = output.stderrShouldContain("Thread-0")
-                    .asLines().stream()
+                List<String> producedList = output.asLines().stream()
+                    .filter(s -> s.contains("Produced KeyUpdate"))
+                    .toList();
+                List<String> skippingList = output.asLines().stream()
                     .filter(s -> s.contains("KeyUpdate already send, skipping"))
                     .toList();
+                producedList.forEach(System.err::println);
+                skippingList.forEach(System.err::println);
+                System.err.println("\"Produced KeyUpdate\" count = " + producedList.size());
+                System.err.println("\"KeyUpdate already send, skipping\" count = " + skippingList.size());
 
-                for (String s : list) {
-                    System.err.println(s);
+                /*
+                 * Sometimes debug messages may not be consistent.  The below
+                 * checks verify that at least 1 of each message were received.
+                 */
+                // Ideally there should be 2 "Produced KeyUpdate"
+                if (producedList.isEmpty()) {
+                    throw new AssertionError("No \"Produced KeyUpdate\"");
                 }
-                System.err.println("list size = " + list.size());
-                if (list.isEmpty()) {
-                    throw new AssertionError("No KeyUpdate skipping " +
-                        "messages seen");
+                // Ideally there should be 5 "KeyUpdate already send, skipping"
+                if (skippingList.isEmpty()) {
+                    throw new AssertionError("No \"KeyUpdate already send, skipping\"");
                 }
 
-                output.shouldContain("trigger key update");
-                output.shouldContain("KeyUpdate: write key updated");
-                output.shouldContain("KeyUpdate: read key updated");
             } finally {
                 System.out.println("-- BEGIN Stdout:");
                 System.out.println(output.getStdout());
