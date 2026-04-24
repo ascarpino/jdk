@@ -136,7 +136,7 @@ public class KeyUpdateOnce extends SSLContextTemplate {
                     .filter(s -> s.contains("Produced KeyUpdate"))
                     .toList();
                 List<String> skippingList = output.asLines().stream()
-                    .filter(s -> s.contains("KeyUpdate already send, skipping"))
+                    .filter(s -> s.contains("KeyUpdate already sent, skipping"))
                     .toList();
                 producedList.forEach(System.err::println);
                 skippingList.forEach(System.err::println);

@@ -618,7 +618,7 @@ enum SSLCipher {
 
         /**
          * Check if processed bytes have reached the key usage limit.
-         * If key usage limit is not be monitored, return false.
+         * If key usage limits are not be monitored, return false.
          */
         public boolean atKeyLimit() {
             if (keyLimitCountdown < COUNTDOWNWARN && SSLLogger.isOn()) {
@@ -629,7 +629,7 @@ enum SSLCipher {
             }
             if (keyLimitEnabled == false) {
                 if (SSLLogger.isOn()) {
-                    SSLLogger.fine("KeyUpdate already send, skipping");
+                    SSLLogger.fine("KeyUpdate already sent, skipping");
                 }
                 return false;
             }
