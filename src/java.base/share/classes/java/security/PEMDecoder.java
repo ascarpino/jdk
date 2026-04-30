@@ -159,12 +159,12 @@ public final class PEMDecoder {
     /**
      * Creates an instance with a specific provider and/or password.
      * @param withFactory Key/Certificate factory provider
-     * @param withPassword password for EncryptedPrivateKeyInfo decryption
+     * @param withKeySpec PBEKeySpec for EncryptedPrivateKeyInfo decryption
      */
-    private PEMDecoder(Provider withFactory, PBEKeySpec withPassword) {
-        keySpec = withPassword;
+    private PEMDecoder(Provider withFactory, PBEKeySpec withKeySpec) {
+        keySpec = withKeySpec;
         factory = withFactory;
-        if (withPassword != null) {
+        if (withKeySpec != null) {
             final var k = this.keySpec;
             CleanerFactory.cleaner().register(this, k::clearPassword);
         }
@@ -510,8 +510,15 @@ public final class PEMDecoder {
      */
     public PEMDecoder withFactoryFrom(Provider provider) {
         Objects.requireNonNull(provider);
-        return new PEMDecoder(provider,
-            (keySpec == null ? null : new PBEKeySpec(keySpec.getPassword())));
+        if (keySpec == null) {
+            return new PEMDecoder(provider, null);
+        }
+        char[] passwd = keySpec.getPassword();
+        try {
+            return new PEMDecoder(provider, new PBEKeySpec(passwd));
+        } finally {
+            KeyUtil.clear(passwd);
+        }
     }
 
     /**

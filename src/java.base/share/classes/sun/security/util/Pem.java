@@ -29,6 +29,7 @@ import sun.security.pkcs.PKCS8Key;
 import sun.security.x509.AlgorithmId;
 
 import javax.crypto.EncryptedPrivateKeyInfo;
+import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import java.io.*;
@@ -379,17 +380,21 @@ public class Pem {
      * Decrypt the EncryptedPrivateKeyInfo with the given keySpec and
      * return the PKCS#8 byte array
      */
-    public static byte[] decryptEncoding(EncryptedPrivateKeyInfo ekpi, PBEKeySpec keySpec)
-        throws NoSuchAlgorithmException, InvalidKeyException {
+    public static byte[] decryptEncoding(EncryptedPrivateKeyInfo ekpi,
+        PBEKeySpec keySpec) throws NoSuchAlgorithmException,
+        InvalidKeyException {
 
         PKCS8EncodedKeySpec p8KeySpec = null;
         SecretKeyFactory skf = SecretKeyFactory.getInstance(ekpi.getAlgName());
+        SecretKey sk = null;
         try {
-            p8KeySpec = ekpi.getKeySpec(skf.generateSecret(keySpec));
+            sk = skf.generateSecret(keySpec);
+            p8KeySpec = ekpi.getKeySpec(sk);
             return p8KeySpec.getEncoded();
         } catch (InvalidKeySpecException e) {
             throw new InvalidKeyException(e);
         } finally {
+            KeyUtil.destroySecretKeys(sk);
             KeyUtil.clear(p8KeySpec);
         }
     }

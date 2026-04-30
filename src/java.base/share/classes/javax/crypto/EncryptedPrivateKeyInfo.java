@@ -377,12 +377,14 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
         Objects.requireNonNull(password, "a password must be specified");
         Objects.requireNonNull(algorithm, "an algorithm must be specified");
         char[] passwd = password.clone();
-        byte[] encoding = getEncoding(be);
+        byte[] encoding = null;
+        SecretKey sk = null;
         try {
-            return encryptImpl(encoding, algorithm,
-                generateSecretKey(passwd, algorithm, provider), params,
-                provider, null);
+            encoding = getEncoding(be);
+            sk = generateSecretKey(passwd, algorithm, provider);
+            return encryptImpl(encoding, algorithm, sk, params, provider, null);
         } finally {
+            KeyUtil.destroySecretKeys(sk);
             KeyUtil.clear(passwd, encoding);
         }
     }
@@ -574,7 +576,8 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
         PBEKeySpec keySpec = new PBEKeySpec(password);
         BinaryEncodable d;
         try {
-            d = Pem.toPKCS8Encodable(Pem.decryptEncoding(this, keySpec), true, null);
+            d = Pem.toPKCS8Encodable(Pem.decryptEncoding(this, keySpec), true,
+                null);
         } finally {
             keySpec.clearPassword();
         }
