@@ -111,6 +111,11 @@ import java.util.Objects;
  * for decryption, an {@link EncryptedPrivateKeyInfo} is returned.
  * A {@code PEMDecoder} configured for decryption can also decode unencrypted PEM.
  *
+ * The {@code BinaryEncodable} interface may evolve. When using a decode method
+ * with {@code switch}, always include a {@code default} case rather than
+ * relying on this permits list to remain fixed. An exhaustive {@code switch}
+ * may result in a {@link MatchException}.
+ *
  * <p> This class is immutable and thread-safe.
  *
  * <p> Example: decode a private key:
