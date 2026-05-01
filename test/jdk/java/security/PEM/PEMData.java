@@ -720,4 +720,22 @@ class PEMData {
             }
         }
     }
+
+    static Entry insertPostHeaderChar(Entry entry, char c) {
+        String pem = entry.pem();
+        int secondHyphen = pem.indexOf("-----", 5);
+        int i = secondHyphen + 5;
+        return new Entry(
+            entry.name() + "[" + toChar(c) + "]" ,
+            pem.substring(0, i) + c + pem.substring(i),
+            entry.clazz(), entry.provider(), entry.password());
+    }
+
+    private static String toChar(char c) {
+        return switch (c) {
+            case '\s' -> "sp";
+            case '\t' -> "tab";
+            default -> String.valueOf(c);
+        };
+    }
 }
