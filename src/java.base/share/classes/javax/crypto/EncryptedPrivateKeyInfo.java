@@ -434,10 +434,10 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
      *                  encryption (PBE) algorithm
      * @param params the {@code AlgorithmParameterSpec} used for encryption. If
      *               {@code null}, the provider’s default parameters are applied.
-     * @param random the {@code SecureRandom} instance used during encryption.
-     *               If {@code null}, the default is used.
      * @param provider the {@code Provider} for {@code Cipher} operations.
      *                 If {@code null}, the default provider list is used.
+     * @param random the {@code SecureRandom} instance used during encryption.
+     *               If {@code null}, the default is used.
      * @return an {@code EncryptedPrivateKeyInfo}
      * @throws NullPointerException if {@code be}, {@code encryptKey}, or
      *         {@code algorithm} is {@code null}
@@ -781,7 +781,7 @@ public non-sealed class EncryptedPrivateKeyInfo implements BinaryEncodable {
             }
             return factory.generateSecret(keySpec);
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            throw new IllegalArgumentException(e);
+            throw new CryptoException(e);
         } finally {
             keySpec.clearPassword();
         }

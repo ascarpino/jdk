@@ -25,6 +25,7 @@
 
 package java.security;
 
+import jdk.internal.ref.CleanerFactory;
 import sun.security.pkcs.PKCS8Key;
 import sun.security.util.KeyUtil;
 import sun.security.util.Pem;
@@ -122,7 +123,7 @@ public final class PEMEncoder {
     // Singleton instance of PEMEncoder
     private static final PEMEncoder PEM_ENCODER = new PEMEncoder(null);
     // PBE key for encryption
-    private final Key key;
+    private final SecretKey key;
 
     /**
      * Creates a PEMEncoder instance configured for the given keySpec.
@@ -132,6 +133,9 @@ public final class PEMEncoder {
             try {
                 key = SecretKeyFactory.getInstance(Pem.DEFAULT_ALGO).
                     generateSecret(keySpec);
+                final SecretKey k = this.key;
+                CleanerFactory.cleaner().register(this,
+                    () -> KeyUtil.destroySecretKeys(k));
             } catch (GeneralSecurityException e) {
                 throw new CryptoException("Operation failed: " +
                     "unable to generate key or locate a valid algorithm. " +
@@ -192,7 +196,12 @@ public final class PEMEncoder {
                         throw new IllegalArgumentException("PrivateKey is " +
                             "null or has no encoding");
                     }
-                    yield buildKey(kp.getPublic().getEncoded(), encoding);
+                    byte[] pubEncoding = kp.getPublic().getEncoded();
+                    if (pubEncoding == null || pubEncoding.length == 0) {
+                        throw new IllegalArgumentException("PublicKey is " +
+                            "null or has no encoding");
+                    }
+                    yield buildKey(pubEncoding, encoding);
                 } finally {
                     KeyUtil.clear(encoding);
                 }

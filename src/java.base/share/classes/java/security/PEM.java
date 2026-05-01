@@ -33,7 +33,7 @@ import java.util.Objects;
 
 /**
  * A {@link BinaryEncodable} representing a Privacy-Enhanced Mail (PEM) structure
- * composed of a type identifier, Base64-encoded content, and any
+ * composed of a type identifier, Base64-encoded content, and optional
  * leading data that precedes the PEM header during decoding.
  *
  * <p>The {@code type} is the label in the PEM header, following the
@@ -91,9 +91,9 @@ public final class PEM implements BinaryEncodable {
      * @throws NullPointerException if any parameter is {@code null}
      */
     public PEM(String type, String base64Content, byte[] leadingData) {
-        Objects.requireNonNull(leadingData, "leadingData cannot be null");
         this(type, base64Content);
-        this.leadingData = leadingData.clone();
+        this.leadingData = Objects.requireNonNull(
+            leadingData, "leadingData cannot be null").clone();
     }
 
     /**
@@ -137,9 +137,9 @@ public final class PEM implements BinaryEncodable {
      * @throws NullPointerException if any parameter is {@code null}
      */
     public PEM(String type, byte[] binaryContent, byte[] leadingData) {
-        Objects.requireNonNull(leadingData, "leadingData cannot be null");
         this(type, binaryContent);
-        this.leadingData = leadingData.clone();
+        this.leadingData = Objects.requireNonNull(
+            leadingData, "leadingData cannot be null").clone();
     }
 
     /**
@@ -164,7 +164,7 @@ public final class PEM implements BinaryEncodable {
                 "Only the PEM type identifier is allowed.");
         }
 
-        content = Pem.pemEncoded(binaryContent);
+        content = Pem.base64Encode(binaryContent);
         this.type = type;
     }
 

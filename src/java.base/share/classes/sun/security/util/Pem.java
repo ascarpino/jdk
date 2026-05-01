@@ -63,10 +63,10 @@ public class Pem {
     private static final Pattern LINE_WRAP_64_PATTERN;
 
     // Lazy initialized PBES2 OID value
-    private static ObjectIdentifier PBES2OID;
+    private static volatile ObjectIdentifier PBES2OID;
 
     // Lazy initialized singleton encoder.
-    private static Base64.Encoder b64Encoder;
+    private static volatile Base64.Encoder b64Encoder;
 
     static {
         String algo = Security.getProperty("jdk.epkcs8.defaultAlgorithm");
@@ -163,13 +163,10 @@ public class Pem {
      * @param shortHeader if true, the hyphen length is 4 because the first
      *                    hyphen is assumed to have been read.  This is needed
      *                    for the CertificateFactory X509 implementation.
-     * @return a new PEMRecord
+     * @return a PEM instance
      * @throws IOException on IO errors or PEM syntax errors that leave
      * the read position not at the end of a PEM block
      * @throws EOFException when at the unexpected end of the stream
-     * @throws IllegalArgumentException when a PEM syntax error occurs,
-     * but the read position in the stream is at the end of the block, so
-     * future reads can be successful.
      */
     public static PEM readPEM(InputStream is, boolean shortHeader)
         throws IOException {
@@ -356,24 +353,24 @@ public class Pem {
     }
 
     /**
-     * Construct a String-based encoding based off the type.  leadingData
-     * is not used with this method.
-     * @return PEM in a string
+     * Construct a String-based PEM encoding with the given type and binary
+     * data.
      */
     public static String pemEncoded(String type, byte[] der) {
-        return pemEncoded(type, pemEncoded(der));
+        return pemEncoded(type, base64Encode(der));
     }
 
     /**
-     * Construct a String-based encoding based off the type.  leadingData
-     * is not used with this method.
-     * @return PEM in a string
+     * Construct a String-based PEM encoding from the PEM object given.
+     * leadingData is not used with this method.
      */
     public static String pemEncoded(PEM pem) {
-        return pemEncoded(pem.type(), pem.content());
+        String p = LINE_WRAP_64_PATTERN.matcher(pem.content()).
+            replaceAll("$1\r\n");
+        return pemEncoded(pem.type(), p);
     }
 
-    public static String pemEncoded(byte[] der) {
+    public static String base64Encode(byte[] der) {
         if (b64Encoder == null) {
             b64Encoder = Base64.getMimeEncoder(64, CRLF);
         }
