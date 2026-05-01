@@ -208,9 +208,8 @@ public final class PEM implements BinaryEncodable {
     }
 
     /**
-     * Returns the PEM-encoded string representation of this object.
-     * The {@code type} is used to generate the header and footer, and the
-     * content is Base64-encoded. {@code leadingData} is not included.
+     * Returns a PEM string representation of this object, using {@code type}
+     * for the header and footer lines and {@code content} for the Base64 body.
      *
      * @return the PEM-formatted string
      */
