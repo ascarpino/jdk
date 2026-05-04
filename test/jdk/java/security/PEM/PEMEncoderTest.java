@@ -78,8 +78,12 @@ public class PEMEncoderTest {
         keymap.keySet().forEach(key -> test(key, PEMEncoder.of()));
         System.out.println("Same instance re-encode testToString:");
         keymap.keySet().forEach(key -> testToString(key, encoder));
+        System.out.println("Same instance encode/encodeToString consistency test:");
+        keymap.keySet().forEach(key -> testEncodeConsistency(key, encoder));
         System.out.println("New instance re-encode testToString:");
         keymap.keySet().forEach(key -> testToString(key, PEMEncoder.of()));
+        System.out.println("New instance encode/encodeToString consistency test:");
+        keymap.keySet().forEach(key -> testEncodeConsistency(key, PEMEncoder.of()));
         System.out.println("Same instance Encoder testEncodedKeySpec:");
         testEncodedKeySpec(encoder);
         System.out.println("New instance Encoder testEncodedKeySpec:");
@@ -89,6 +93,8 @@ public class PEMEncoderTest {
         keymap = generateObjKeyMap(PEMData.encryptedList);
         System.out.println("Same instance Encoder match test:");
         keymap.keySet().forEach(key -> testEncryptedMatch(key, encoder));
+        System.out.println("Same instance encrypted encode/encodeToString consistency test:");
+        keymap.keySet().forEach(key -> testEncodeConsistency(key, encoder));
         System.out.println("Same instance Encoder new withEnc test:");
         keymap.keySet().forEach(key -> testEncrypted(key, encoder));
         System.out.println("New instance Encoder and withEnc test:");
@@ -165,6 +171,11 @@ public class PEMEncoderTest {
         e = PEMData.ecsecp256.makeValidNoCRLF("ecsecp256ValidNoCRLF");
         PEMData.checkResultsExact(expected, encoder.encodeToString(
             decoder.decode(e.pem())));
+
+        // Independent structural check for the new byte-oriented utility path.
+        System.out.println("Testing consistency between pemEncodedFromDER()" +
+            "and pemEncoded():");
+        testPemEncodedFromDER();
     }
 
     static Map generateObjKeyMap(List<PEMData.Entry> list) {
@@ -215,6 +226,46 @@ public class PEMEncoderTest {
 
         PEMData.checkResults(entry, result);
         System.out.println("PASS: " + entry.name());
+    }
+
+    static void testEncodeConsistency(String key, PEMEncoder encoder) {
+        byte[] encoding;
+        String pem;
+        PEMData.Entry entry = PEMData.getEntry(key);
+        try {
+            encoding = encoder.encode(keymap.get(key));
+            pem = encoder.encodeToString(keymap.get(key));
+        } catch (RuntimeException e) {
+            throw new AssertionError("Encoder consistency failure with " +
+                entry.name(), e);
+        }
+
+        assertEquals(new String(encoding, StandardCharsets.ISO_8859_1), pem);
+        System.out.println("PASS: " + entry.name());
+    }
+
+    static void testPemEncodedFromDER() {
+        byte[] der = {1, 2, 3, 4, 5};
+        String type = Pem.CERTIFICATE;
+        String base64 = Base64.getMimeEncoder(64, "\r\n".getBytes(
+            StandardCharsets.ISO_8859_1)).encodeToString(der);
+        String expected = "-----BEGIN " + type + "-----\r\n" +
+            base64 + (!base64.endsWith("\n") ? "\r\n" : "") +
+            "-----END " + type + "-----\r\n";
+
+        assertEquals(new String(Pem.pemEncodedFromDER(type, der),
+            StandardCharsets.ISO_8859_1), expected);
+
+        // Empty DER should still include a CRLF before footer.
+        byte[] emptyDer = new byte[0];
+        String emptyBase64 = Base64.getMimeEncoder(64, "\r\n".getBytes(
+            StandardCharsets.ISO_8859_1)).encodeToString(emptyDer);
+        String emptyExpected = "-----BEGIN " + type + "-----\r\n" +
+            emptyBase64 + (!emptyBase64.endsWith("\n") ? "\r\n" : "") +
+            "-----END " + type + "-----\r\n";
+        assertEquals(new String(Pem.pemEncodedFromDER(type, emptyDer),
+            StandardCharsets.ISO_8859_1), emptyExpected);
+        System.out.println("PASS");
     }
 
     /*

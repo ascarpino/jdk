@@ -25,9 +25,11 @@
 
 package java.security;
 
+import sun.security.util.KeyUtil;
 import sun.security.util.Pem;
 
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Objects;
 
@@ -164,7 +166,8 @@ public final class PEM implements BinaryEncodable {
                 "Only the PEM type identifier is allowed.");
         }
 
-        content = Pem.base64Encode(binaryContent);
+        this.content = KeyUtil.clear(Pem.base64Encode(binaryContent),
+            e -> new String(e, StandardCharsets.ISO_8859_1));
         this.type = type;
     }
 

@@ -345,6 +345,10 @@ public class Pem {
         return readPEM(is, false);
     }
 
+    /**
+     * Return a PEM encoding with the given type and binary
+     * data in a String.
+     */
     public static String pemEncoded(String type, String base64) {
         return
             "-----BEGIN " + type + "-----\r\n" +
@@ -353,11 +357,33 @@ public class Pem {
     }
 
     /**
-     * Construct a String-based PEM encoding with the given type and binary
-     * data.
+     * Return a PEM encoding with the given type and binary
+     * data in a byte array.
      */
-    public static String pemEncoded(String type, byte[] der) {
-        return pemEncoded(type, base64Encode(der));
+    public static byte[] pemEncodedFromDER(String type, byte[] der) {
+        byte[] header = ("-----BEGIN " + type + "-----\r\n")
+            .getBytes(StandardCharsets.ISO_8859_1);
+        byte[] footer = ("-----END " + type + "-----\r\n")
+            .getBytes(StandardCharsets.ISO_8859_1);
+        byte[] base64 = base64Encode(der);
+
+        try {
+            int crlfLen = (base64.length == 0 ||
+                base64[base64.length - 1] != '\n') ? 2 : 0;
+            byte[] result = new byte[header.length + base64.length +
+                crlfLen + footer.length];
+            System.arraycopy(header, 0, result, 0, header.length);
+            System.arraycopy(base64, 0, result, header.length, base64.length);
+            if (crlfLen == 2) {
+                result[header.length + base64.length] = '\r';
+                result[header.length + base64.length + 1] = '\n';
+            }
+            System.arraycopy(footer, 0, result,
+                header.length + base64.length + crlfLen, footer.length);
+            return result;
+        } finally {
+            KeyUtil.clear(base64);
+        }
     }
 
     /**
@@ -365,16 +391,15 @@ public class Pem {
      * leadingData is not used with this method.
      */
     public static String pemEncoded(PEM pem) {
-        String p = LINE_WRAP_64_PATTERN.matcher(pem.content()).
-            replaceAll("$1\r\n");
-        return pemEncoded(pem.type(), p);
+        return pemEncoded(pem.type(), pem.content());
     }
 
-    public static String base64Encode(byte[] der) {
+    // Return base64 encoding in a byte array.
+    public static byte[] base64Encode(byte[] der) {
         if (b64Encoder == null) {
             b64Encoder = Base64.getMimeEncoder(64, CRLF);
         }
-        return b64Encoder.encodeToString(der);
+        return b64Encoder.encode(der);
     }
 
     /**

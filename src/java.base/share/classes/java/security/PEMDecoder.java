@@ -67,10 +67,6 @@ import java.util.Objects;
  *   (if the encoding contains a public key)</li>
  * </ul>
  *
- * <p> For {@code PublicKey} and {@code PrivateKey} types, algorithm-specific
- * subclasses are returned if supported, such as {@code ECPublicKey} or
- * {@code ECPrivateKey} for Elliptic Curve keys.
- *
  * <p> If the PEM type has no corresponding class, {@code decode(String)} and
  * {@code decode(InputStream)} will return a {@code PEM} object.
  *

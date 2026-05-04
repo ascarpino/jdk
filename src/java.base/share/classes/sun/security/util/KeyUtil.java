@@ -568,5 +568,29 @@ public final class KeyUtil {
             }
         }
     }
+
+    public interface ByteArrayOp<T> {
+        T apply(byte[] bytes);
+    }
+
+    /**
+     * Executes {@code op} with {@code encoding} and then zeroes {@code encoding}
+     * in a {@code finally} block before returning or propagating an exception.
+     *
+     * <p>{@code encoding} is temporary sensitive data and is always wiped.
+     *
+     * <p>Usage constraint: {@code op} must not return {@code encoding} itself, or
+     * any value backed by the same array. Otherwise, the returned data will already
+     * be zeroed when this method returns.
+     */
+    public static <T> T clear(byte[] encoding, ByteArrayOp<T> op) {
+        try {
+            return op.apply(encoding);
+        } finally {
+            if (encoding != null) {
+                Arrays.fill(encoding, (byte)0);
+            }
+        }
+    }
 }
 
